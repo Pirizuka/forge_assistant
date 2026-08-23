@@ -1585,7 +1585,7 @@ function renderMetalCards() {
     amountRow.className = "amount-row";
     const amountInput = document.createElement("input");
     amountInput.type = "number"; amountInput.min = 0; amountInput.step = "any";
-    amountInput.placeholder = "How much do you have? (blank = enough)";
+    amountInput.placeholder = "Available amount (blank for enough)";
     amountInput.value = metal.amount === null ? "" : metal.amount;
     amountInput.addEventListener("input", () => {
       const raw = amountInput.value.trim();
