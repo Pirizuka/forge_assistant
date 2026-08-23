@@ -30,8 +30,8 @@
     margin: 0;
     background: var(--bg);
     background-image:
-      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(255,122,61,0.10), transparent 60%),
-      radial-gradient(ellipse 700px 400px at 100% 0%, rgba(79,182,168,0.08), transparent 55%);
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(79,182,168,0.10), transparent 60%),
+      radial-gradient(ellipse 700px 400px at 100% 0%, rgba(255,122,61,0.08), transparent 55%);
     color: var(--text);
     font-family: 'Work Sans', system-ui, sans-serif;
     min-height: 100vh;
@@ -59,7 +59,7 @@
     line-height: 0.95;
     color: var(--text);
   }
-  h1 span { color: var(--ember); }
+  h1 span { color: var(--quench); }
 
   .version-badge {
     font-family: 'JetBrains Mono', monospace;
@@ -122,8 +122,8 @@
     width: 100%;
   }
   input[type="text"]:focus, input[type="number"]:focus, select:focus {
-    border-color: var(--ember);
-    box-shadow: 0 0 0 3px rgba(255,122,61,0.18);
+    border-color: var(--quench);
+    box-shadow: 0 0 0 3px rgba(79,182,168,0.18);
   }
   input::placeholder { color: #5c5245; }
   /* Hide spinner arrows on number inputs - we have sliders for fine control */
@@ -146,9 +146,9 @@
     outline-offset: 2px;
   }
 
-  .btn-primary { background: var(--ember); color: #241207; }
-  .btn-primary:hover { background: #ff8c56; }
-  .btn-primary:disabled { background: var(--ember-dim); cursor: not-allowed; opacity: 0.6; }
+  .btn-primary { background: var(--quench); color: #0e211e; }
+  .btn-primary:hover { background: #63c9bb; }
+  .btn-primary:disabled { background: var(--quench-dim); cursor: not-allowed; opacity: 0.6; }
 
   .btn-quiet {
     background: var(--panel-2);
@@ -251,7 +251,7 @@
     padding: 0;
     cursor: pointer;
   }
-  .add-square-btn:hover { border-color: var(--ember); color: var(--ember); }
+  .add-square-btn:hover { border-color: var(--quench); color: var(--quench); }
 
   /* Color picker popover */
   .color-popover {
@@ -350,7 +350,7 @@
     gap: 6px;
     cursor: pointer;
   }
-  .range-toggle-row input[type="checkbox"] { accent-color: var(--ember); width: 14px; height: 14px; }
+  .range-toggle-row input[type="checkbox"] { accent-color: var(--quench); width: 14px; height: 14px; }
 
   /* Dual-handle slider (two overlapping range inputs) */
   .dual-slider {
@@ -452,7 +452,7 @@
     font-size: 13px;
     color: var(--text-dim);
   }
-  .checkbox-row input { accent-color: var(--ember); width: 15px; height: 15px; }
+  .checkbox-row input { accent-color: var(--quench); width: 15px; height: 15px; }
   .conversion-row {
     display: flex;
     align-items: center;
@@ -469,8 +469,8 @@
 
   /* Prominent "Maximum possible" headline block */
   .totals-highlight {
-    background: linear-gradient(160deg, rgba(255,122,61,0.14), rgba(79,182,168,0.08));
-    border: 1px solid rgba(255,122,61,0.35);
+    background: linear-gradient(160deg, rgba(79,182,168,0.14), rgba(255,122,61,0.08));
+    border: 1px solid rgba(79,182,168,0.35);
     border-radius: var(--radius);
     padding: 18px 20px;
     margin-bottom: 18px;
@@ -639,7 +639,7 @@
     margin-bottom: 8px;
     cursor: pointer;
   }
-  .setup-card:hover { border-color: var(--ember-dim); }
+  .setup-card:hover { border-color: var(--quench-dim); }
   .setup-card-main { min-width: 0; flex: 1; }
   .setup-card-name { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
   .setup-dots { display: flex; gap: 5px; }
