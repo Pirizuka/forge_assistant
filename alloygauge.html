@@ -1294,18 +1294,18 @@ function randomMetalColor() {
 // STATE
 // ==============================
 let nextId = 1;
-function makeMetal(name) {
+function makeMetal(name, color) {
   return {
     id: nextId++,
     name,
-    color: randomMetalColor(),
+    color: color || randomMetalColor(),
     min: 0,
     max: 100,
     isRange: true,
     amount: null,
   };
 }
-let metals = [makeMetal("Metal 1"), makeMetal("Metal 2")];
+let metals = [makeMetal("Metal 1", "#ff7a3d"), makeMetal("Metal 2", "#4fb6a8")];
 
 let colorPopoverTargetId = null;
 
