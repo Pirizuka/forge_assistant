@@ -1,0 +1,2010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AlloyGauge — Forge Assistant</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #1c1712;
+    --panel: #241d17;
+    --panel-2: #2c241c;
+    --line: #423527;
+    --ember: #ff7a3d;
+    --ember-dim: #b8501f;
+    --quench: #4fb6a8;
+    --quench-dim: #327068;
+    --gold: #ffc857;
+    --text: #ede4d6;
+    --text-dim: #a89a86;
+    --error: #e05a45;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    background-image:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(255,122,61,0.10), transparent 60%),
+      radial-gradient(ellipse 700px 400px at 100% 0%, rgba(79,182,168,0.08), transparent 55%);
+    color: var(--text);
+    font-family: 'Work Sans', system-ui, sans-serif;
+    min-height: 100vh;
+    padding: 32px 16px 64px;
+  }
+
+  .wrap { max-width: 780px; margin: 0 auto; }
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--quench);
+    margin: 0 0 6px;
+  }
+  .eyebrow a { color: inherit; }
+
+  h1 {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 800;
+    font-size: 44px;
+    letter-spacing: 0.01em;
+    margin: 0 0 4px;
+    line-height: 0.95;
+    color: var(--text);
+  }
+  h1 span { color: var(--ember); }
+
+  .version-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-dim);
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    padding: 3px 9px;
+    border-radius: 999px;
+    vertical-align: middle;
+    margin-left: 8px;
+  }
+
+  .tagline {
+    color: var(--text-dim);
+    font-size: 14.5px;
+    margin: 0 0 28px;
+    max-width: 52ch;
+    line-height: 1.5;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 18px;
+  }
+
+  .panel-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin: 0 0 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  label.field-label {
+    display: block;
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 7px;
+  }
+
+  input[type="text"], input[type="number"], select {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    padding: 9px 11px;
+    border-radius: var(--radius-sm);
+    outline: none;
+    width: 100%;
+  }
+  input[type="text"]:focus, input[type="number"]:focus, select:focus {
+    border-color: var(--ember);
+    box-shadow: 0 0 0 3px rgba(255,122,61,0.18);
+  }
+  input::placeholder { color: #5c5245; }
+  /* Hide spinner arrows on number inputs - we have sliders for fine control */
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+
+  button {
+    font-family: 'Work Sans', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 11px 18px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  button:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+
+  .btn-primary { background: var(--ember); color: #241207; }
+  .btn-primary:hover { background: #ff8c56; }
+  .btn-primary:disabled { background: var(--ember-dim); cursor: not-allowed; opacity: 0.6; }
+
+  .btn-quiet {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+  }
+  .btn-quiet:hover { border-color: var(--quench); color: var(--quench); }
+
+  .btn-icon {
+    background: transparent;
+    color: var(--text-dim);
+    padding: 6px 9px;
+    font-size: 13px;
+    border: none;
+  }
+  .btn-icon:hover { color: var(--error); }
+
+  .helper-text {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+  .helper-text code {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--panel-2);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--gold);
+  }
+
+  .error-msg {
+    color: var(--error);
+    font-size: 13.5px;
+    margin-top: 10px;
+    display: none;
+    line-height: 1.5;
+  }
+  .error-msg.show { display: block; }
+
+  details.instructions summary, details.settings summary {
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gold);
+    list-style: none;
+  }
+  details.instructions summary::-webkit-details-marker,
+  details.settings summary::-webkit-details-marker { display: none; }
+  details.instructions summary::before { content: "\2756 "; }
+  details.settings summary::before { content: "\2699 "; }
+  details.instructions[open] summary, details.settings[open] summary { margin-bottom: 14px; }
+  .instructions-body h3 {
+    font-family: 'Work Sans', sans-serif;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 18px 0 6px;
+  }
+  .instructions-body h3:first-child { margin-top: 0; }
+  .instructions-body p, .instructions-body li {
+    font-size: 13.5px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+  .instructions-body ul { margin: 6px 0; padding-left: 20px; }
+  .instructions-body li { margin-bottom: 5px; }
+
+  /* ---- Metal squares ---- */
+  .metals-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 6px;
+  }
+  .metal-square-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    border: 2px solid rgba(255,255,255,0.15);
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    flex-shrink: 0;
+  }
+  .metal-square-btn:hover { border-color: var(--gold); }
+  .add-square-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    border: 2px dashed var(--line);
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 22px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+  }
+  .add-square-btn:hover { border-color: var(--ember); color: var(--ember); }
+
+  /* Color picker popover */
+  .color-popover {
+    position: absolute;
+    z-index: 40;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+    width: 220px;
+    display: none;
+  }
+  .color-popover.show { display: block; }
+  .color-popover input[type="color"] {
+    width: 100%;
+    height: 36px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    padding: 2px;
+    cursor: pointer;
+    margin-bottom: 10px;
+  }
+  .preset-swatches {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+  }
+  .preset-swatch {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.15);
+    cursor: pointer;
+    padding: 0;
+  }
+  .preset-swatch:hover { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+  /* ---- Metal card (name, slider, amount) ---- */
+  .metal-card {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .metal-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .metal-swatch-mini {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,0.2);
+    cursor: pointer;
+  }
+  .metal-swatch-mini:hover { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(255,200,87,0.25); }
+  .metal-name-input {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: 'Work Sans', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    padding: 4px 6px;
+    border-radius: 6px;
+  }
+  .metal-name-input:focus { outline: none; background: rgba(255,255,255,0.05); }
+  .metal-remove-btn {
+    background: transparent;
+    color: var(--text-dim);
+    border: none;
+    font-size: 14px;
+    padding: 4px 8px;
+  }
+  .metal-remove-btn:hover { color: var(--error); }
+
+  .range-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .range-toggle-row label {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+  .range-toggle-row input[type="checkbox"] { accent-color: var(--ember); width: 14px; height: 14px; }
+
+  /* Dual-handle slider (two overlapping range inputs) */
+  .dual-slider {
+    position: relative;
+    height: 28px;
+    margin-bottom: 10px;
+  }
+  .dual-slider-track {
+    position: absolute;
+    top: 12px;
+    left: 0;
+    right: 0;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--line);
+  }
+  .dual-slider-fill {
+    position: absolute;
+    top: 12px;
+    height: 4px;
+    border-radius: 2px;
+  }
+  .dual-slider input[type="range"] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    margin: 0;
+    background: transparent;
+    -webkit-appearance: none;
+    appearance: none;
+    pointer-events: none;
+    height: 28px;
+  }
+  .dual-slider input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    pointer-events: auto;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--gold);
+    border: 2px solid var(--bg);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    cursor: pointer;
+    margin-top: -1px;
+  }
+  .dual-slider input[type="range"]::-moz-range-thumb {
+    pointer-events: auto;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--gold);
+    border: 2px solid var(--bg);
+    cursor: pointer;
+  }
+  .dual-slider input[type="range"]::-webkit-slider-runnable-track { background: transparent; }
+  .dual-slider input[type="range"]::-moz-range-track { background: transparent; }
+
+  .pct-inputs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .pct-inputs .pct-field {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+  }
+  .pct-inputs input[type="number"] { text-align: center; }
+  .pct-inputs span { font-size: 12px; color: var(--text-dim); }
+  .pct-sep { color: var(--text-dim); font-size: 13px; }
+
+  .amount-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .amount-row input { flex: 1; }
+  .amount-row .unit-label {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  /* ---- Settings ---- */
+  .settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .settings-grid .full-width { grid-column: 1 / -1; }
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .checkbox-row input { accent-color: var(--ember); width: 15px; height: 15px; }
+  .conversion-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  .conversion-row input { width: 70px; text-align: center; }
+
+  /* ---- Results ---- */
+  #resultsPanel { display: none; }
+  #resultsPanel.show { display: block; }
+
+  /* Prominent "Maximum possible" headline block */
+  .totals-highlight {
+    background: linear-gradient(160deg, rgba(255,122,61,0.14), rgba(79,182,168,0.08));
+    border: 1px solid rgba(255,122,61,0.35);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin-bottom: 18px;
+  }
+  .totals-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin: 0 0 6px;
+  }
+  .totals-big {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 800;
+    font-size: 32px;
+    color: var(--text);
+    margin: 0 0 14px;
+    line-height: 1;
+  }
+  .totals-big .totals-unit {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-left: 6px;
+  }
+  .totals-blob-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+  }
+  .totals-blob {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13.5px;
+    font-weight: 600;
+    padding: 7px 13px;
+    border-radius: 999px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .totals-blob .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+  .ratio-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .ratio-chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--panel-2);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .ratio-chip .dot { width: 9px; height: 9px; border-radius: 50%; }
+
+  .batch-card {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .batch-card-title-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .batch-card-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+  .batch-card-title.grouped {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .batch-group-count {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    color: var(--gold);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .batch-expand-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-size: 12px;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    padding: 2px;
+    cursor: pointer;
+  }
+  .batch-expand-btn:hover { color: var(--quench); text-decoration-color: var(--quench); }
+
+  .batch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13.5px;
+    padding: 3px 0;
+  }
+  .batch-row .metal-label { display: flex; align-items: center; gap: 8px; }
+  .batch-row .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .batch-row .amount { font-family: 'JetBrains Mono', monospace; color: var(--text-dim); }
+  .batch-total {
+    border-top: 1px dashed var(--line);
+    margin-top: 8px;
+    padding-top: 8px;
+    font-size: 13px;
+    color: var(--text-dim);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .warning-msg {
+    color: var(--gold);
+    font-size: 12.5px;
+    margin-top: 8px;
+    background: rgba(255,200,87,0.08);
+    border: 1px solid rgba(255,200,87,0.3);
+    border-radius: var(--radius-sm);
+    padding: 8px 11px;
+  }
+
+  /* ---- Saved setups ---- */
+  .save-setup-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .save-setup-row input { flex: 1; }
+  .saved-msg {
+    color: var(--quench);
+    font-size: 13px;
+    margin: -4px 0 12px;
+    display: none;
+  }
+  .saved-msg.show { display: block; }
+
+  .setup-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+  }
+  .setup-card:hover { border-color: var(--ember-dim); }
+  .setup-card-main { min-width: 0; flex: 1; }
+  .setup-card-name { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+  .setup-dots { display: flex; gap: 5px; }
+  .setup-dots .dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+
+  .empty-state {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13.5px;
+    padding: 14px 10px;
+    line-height: 1.6;
+  }
+
+  /* ---- Reused modal pattern (overwrite confirmation) ---- */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,8,6,0.72);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 50;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 22px;
+    max-width: 440px;
+    width: 100%;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .modal-header h2 {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0;
+  }
+  .modal-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--line);
+  }
+
+  .footnote {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 12px;
+    margin-top: 8px;
+  }
+  .footnote a { color: var(--quench); }
+
+  @media (max-width: 480px) {
+    h1 { font-size: 34px; }
+    .settings-grid { grid-template-columns: 1fr; }
+    .pct-inputs { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="panel">
+    <details class="instructions">
+      <summary>How to use this</summary>
+      <div class="instructions-body">
+        <p>
+          Works out how much of each metal to combine for an alloy, and how
+          to split it into crucible-sized batches if the total is more than
+          your crucible can hold at once.
+        </p>
+        <h3>Setting up metals</h3>
+        <ul>
+          <li>Click <strong>+</strong> to add a metal. Click its colored square to change its color.</li>
+          <li>Type the metal's name, then set its allowed percentage range with the slider or the two boxes underneath.</li>
+          <li>Untick "Range" if the recipe calls for one exact percentage rather than a range.</li>
+          <li>Optionally enter how much of that metal you have. Leave it blank if you have (or can get) as much as you need.</li>
+        </ul>
+        <h3>Getting a result</h3>
+        <p>
+          If at least one metal has an amount entered, the calculator finds
+          the largest possible batch and the exact ratio that uses your
+          scarcest materials most efficiently. If no metal has an amount
+          entered, it just gives you an average alloy within the ranges.
+        </p>
+        <p>
+          If the result is bigger than your crucible cap, it's split into
+          multiple batches - each one still respecting every metal's
+          percentage range on its own, not just on average.
+        </p>
+        <h3>Units &amp; partial amounts</h3>
+        <p>
+          Pick whichever unit you track materials in (millibuckets, ingots,
+          or nuggets) in Settings, along with your mod's conversion rate.
+          Turn on "Allow partial amounts" if your setup lets you use
+          fractional units - otherwise everything is rounded to whole units.
+        </p>
+      </div>
+    </details>
+  </div>
+
+  <p class="eyebrow"><a href="index.html">Forge Assistant</a> &middot; alloy calculator</p>
+  <h1>Alloy<span>Gauge</span> <span class="version-badge">v1.0</span></h1>
+  <p class="tagline">
+    Set your metals, their allowed ranges, and what you've got on hand -
+    this works out the most efficient mix and splits it into crucible-sized
+    batches for you.
+  </p>
+
+  <div class="panel">
+    <p class="panel-title">Metals</p>
+    <div class="metals-row" id="metalsRow"></div>
+    <div id="metalCardsContainer"></div>
+    <p class="error-msg" id="setupError"></p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-title">Saved setups</p>
+    <div class="save-setup-row">
+      <input type="text" id="setupNameInput" placeholder="Name this setup (e.g. Weak Steel)" />
+      <button class="btn-quiet" id="saveSetupBtn">Save</button>
+    </div>
+    <p class="saved-msg" id="setupSavedMsg">Saved.</p>
+    <div id="savedSetupsList"></div>
+  </div>
+
+  <div class="panel">
+    <p class="panel-title">Settings</p>
+    <div class="settings-grid">
+      <div>
+        <label class="field-label" for="unitSelect">Unit</label>
+        <select id="unitSelect">
+          <option value="mB">Millibuckets (mB)</option>
+          <option value="ingot" selected>Ingots</option>
+          <option value="nugget">Nuggets</option>
+        </select>
+      </div>
+      <div>
+        <label class="field-label" for="crucibleCapInput">Crucible cap</label>
+        <input type="number" id="crucibleCapInput" min="0" placeholder="e.g. 32" />
+      </div>
+      <div class="full-width checkbox-row">
+        <input type="checkbox" id="allowPartialInput" />
+        <label for="allowPartialInput">Allow partial amounts (fractional units)</label>
+      </div>
+      <div class="full-width">
+        <label class="field-label">Conversion rate</label>
+        <div class="conversion-row">
+          <input type="number" id="mbPerIngotInput" min="0" step="any" value="144" />
+          <span>mB =</span>
+          <input type="number" id="ingotsInput" min="0" step="any" value="1" />
+          <span>ingot(s) =</span>
+          <input type="number" id="nuggetsPerIngotInput" min="0" step="any" value="9" />
+          <span>nuggets</span>
+        </div>
+        <p class="helper-text">Different mods define these differently - enter the numbers exactly as your mod states them (they don't need to be reduced to "per 1 ingot" first).</p>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-primary" id="calculateBtn" style="width:100%; padding:13px;">Calculate</button>
+  <p class="error-msg" id="calcError"></p>
+
+  <div class="panel" id="resultsPanel" style="margin-top:18px;">
+    <p class="panel-title">Result</p>
+    <div class="totals-highlight" id="totalsHighlight">
+      <p class="totals-label" id="totalsLabel">Maximum possible</p>
+      <p class="totals-big" id="totalsBig"></p>
+      <div class="totals-blob-row" id="totalsBlobRow"></div>
+    </div>
+    <div class="ratio-chip-row" id="ratioChipRow"></div>
+    <div id="batchesContainer"></div>
+    <p class="warning-msg" id="resultWarning" style="display:none;"></p>
+  </div>
+
+  <p class="footnote">Runs entirely in your browser - nothing you enter here is sent anywhere.</p>
+</div>
+
+<div class="color-popover" id="colorPopover">
+  <input type="color" id="colorPopoverInput" />
+  <div class="preset-swatches" id="presetSwatches"></div>
+</div>
+
+<div class="modal-overlay" id="overwriteModalOverlay">
+  <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="overwriteModalTitle">
+    <div class="modal-header">
+      <h2 id="overwriteModalTitle">Setup already exists</h2>
+      <button type="button" class="btn-icon" id="overwriteModalClose" aria-label="Close">&times;</button>
+    </div>
+    <p class="helper-text" id="overwriteModalMessage" style="margin-top:0;"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn-primary" id="overwriteModalConfirmBtn">Overwrite</button>
+      <button type="button" class="btn-quiet" id="overwriteModalCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+// ---- from solver.mjs ----
+// ==============================
+// ALLOY RATIO SOLVER
+// ==============================
+// metals: [{ name, min, max, amount (mB, or null/undefined = "have enough") }]
+// Returns { ok: true, percentages: [p_i...], T } or { ok: false, reason }
+
+function solveRatio(metals) {
+  const n = metals.length;
+  const sumMin = metals.reduce((s, m) => s + m.min, 0);
+  const sumMax = metals.reduce((s, m) => s + m.max, 0);
+  if (sumMin > 100 + 1e-9 || sumMax < 100 - 1e-9) {
+    return { ok: false, reason: "Ranges can't add up to 100% - check your min/max values." };
+  }
+
+  const cIdx = [];
+  const uIdx = [];
+  metals.forEach((m, i) => {
+    if (m.amount !== null && m.amount !== undefined) cIdx.push(i);
+    else uIdx.push(i);
+  });
+
+  // Fully unconstrained: "average alloy" - midpoint of each range, then
+  // proportionally correct to sum to 100 using each metal's slack.
+  if (cIdx.length === 0) {
+    const mid = metals.map((m) => (m.min + m.max) / 2);
+    let sum = mid.reduce((s, v) => s + v, 0);
+    let diff = 100 - sum;
+    // Distribute diff proportionally to available slack (room to move
+    // toward max if diff>0, or toward min if diff<0).
+    for (let iter = 0; iter < 50 && Math.abs(diff) > 1e-9; iter++) {
+      const room = metals.map((m, i) =>
+        diff > 0 ? Math.max(0, m.max - mid[i]) : Math.max(0, mid[i] - m.min)
+      );
+      const totalRoom = room.reduce((s, v) => s + v, 0);
+      if (totalRoom < 1e-12) break;
+      for (let i = 0; i < n; i++) {
+        mid[i] += (room[i] / totalRoom) * diff;
+      }
+      sum = mid.reduce((s, v) => s + v, 0);
+      diff = 100 - sum;
+    }
+    return { ok: true, percentages: mid, T: null }; // T=null => unbounded (no amounts given at all)
+  }
+
+  const maxU = uIdx.reduce((s, i) => s + metals[i].max, 0);
+  const minU = uIdx.reduce((s, i) => s + metals[i].min, 0);
+  const sumMinC = cIdx.reduce((s, i) => s + metals[i].min, 0);
+  const sumMaxC = cIdx.reduce((s, i) => s + metals[i].max, 0);
+
+  const requiredCMin = Math.max(sumMinC, 100 - maxU);
+  const maxAllowedC = Math.min(sumMaxC, 100 - minU);
+
+  if (requiredCMin > maxAllowedC + 1e-9) {
+    return { ok: false, reason: "Ranges can't be satisfied together - check your min/max values." };
+  }
+
+  const totalC = requiredCMin; // minimize C's footprint to maximize T
+
+  // Water-filling among constrained metals to equalize A_i/p_i.
+  // Clip exactly ONE violator per iteration (the most severe one), then
+  // re-propose for the remaining active set against the freed-up budget -
+  // clipping multiple members off stale proposals in a single pass can
+  // strand leftover budget with nowhere to go (verified via test case 5).
+  const p = new Array(n).fill(0);
+  let active = [...cIdx];
+  let remainingBudget = totalC;
+
+  for (let guard = 0; guard < cIdx.length + 2 && active.length > 0; guard++) {
+    const sumA = active.reduce((s, i) => s + metals[i].amount, 0);
+    if (sumA <= 0) {
+      const each = remainingBudget / active.length;
+      active.forEach((i) => (p[i] = each));
+      break;
+    }
+    const proposal = {};
+    active.forEach((i) => {
+      proposal[i] = (metals[i].amount / sumA) * remainingBudget;
+    });
+
+    // Find the worst single violator (largest overshoot past its bound).
+    let worstIdx = -1;
+    let worstAmount = -Infinity;
+    let worstOver = 0;
+    for (const i of active) {
+      const m = metals[i];
+      if (proposal[i] < m.min - 1e-9) {
+        const over = m.min - proposal[i];
+        if (over > worstOver) { worstOver = over; worstIdx = i; worstAmount = m.min; }
+      } else if (proposal[i] > m.max + 1e-9) {
+        const over = proposal[i] - m.max;
+        if (over > worstOver) { worstOver = over; worstIdx = i; worstAmount = m.max; }
+      }
+    }
+
+    if (worstIdx === -1) {
+      active.forEach((i) => (p[i] = proposal[i]));
+      break;
+    }
+
+    p[worstIdx] = worstAmount;
+    remainingBudget -= worstAmount;
+    active = active.filter((i) => i !== worstIdx);
+  }
+
+  // T = the common ratio among whichever constrained metals ended up
+  // unclipped (or, if all got clipped, the minimum A_i/p_i among all of C).
+  let T = Infinity;
+  for (const i of cIdx) {
+    const m = metals[i];
+    if (p[i] > 1e-12) T = Math.min(T, (100 * m.amount) / p[i]);
+  }
+
+  // Unconstrained metals share the remaining percentage (100 - totalC),
+  // proportional to each one's range width (tie-break rule).
+  const totalU = 100 - totalC;
+  if (uIdx.length > 0) {
+    const baseMin = uIdx.reduce((s, i) => s + metals[i].min, 0);
+    let leftover = totalU - baseMin;
+    uIdx.forEach((i) => (p[i] = metals[i].min));
+    for (let iter = 0; iter < 50 && Math.abs(leftover) > 1e-9; iter++) {
+      const room = uIdx.map((i) => Math.max(0, metals[i].max - p[i]));
+      const totalRoom = room.reduce((s, v) => s + v, 0);
+      if (totalRoom < 1e-12) break;
+      uIdx.forEach((i, k) => {
+        p[i] += (room[k] / totalRoom) * leftover;
+      });
+      const sumU = uIdx.reduce((s, i) => s + p[i], 0);
+      leftover = totalU - sumU;
+    }
+  }
+
+  return { ok: true, percentages: p, T };
+}
+
+// ---- from batches.mjs ----
+// ==============================
+// BATCH SPLITTER
+// ==============================
+// Given final integer (or continuous) per-metal totals to use, and a
+// crucible cap, split into batches each <= cap, each individually
+// respecting every metal's %range.
+
+function gcdMany(nums) {
+  const gcd2 = (a, b) => (b === 0 ? a : gcd2(b, a % b));
+  return nums.reduce((g, n) => gcd2(g, n), 0);
+}
+
+// allowPartial=false path: totals are already whole numbers of the display
+// unit. Uses the GCD of the totals to find the smallest repeating integer
+// "block" that exactly preserves every metal's percentage, then packs as
+// many whole blocks as fit under the cap per batch.
+function splitBatchesInteger(totals, cap) {
+  const n = totals.length;
+  const nonZero = totals.filter((t) => t > 0);
+  const g = gcdMany(nonZero.map((t) => Math.round(t)));
+  if (g <= 0) return { ok: false, reason: "Nothing to split." };
+
+  const block = totals.map((t) => Math.round(t) / g); // per-metal amount in one block
+  const blockTotal = block.reduce((s, v) => s + v, 0);
+  if (blockTotal > cap) {
+    // Even a single base block doesn't fit the cap - can't preserve exact
+    // ratio with whole units at all; caller should fall back to greedy.
+    return { ok: false, reason: "Base ratio unit exceeds the crucible cap." };
+  }
+
+  const totalBlocks = g;
+  const blocksPerBatch = Math.floor(cap / blockTotal);
+  const batches = [];
+  let blocksLeft = totalBlocks;
+  while (blocksLeft > 0) {
+    const take = Math.min(blocksPerBatch, blocksLeft);
+    batches.push(block.map((v) => v * take));
+    blocksLeft -= take;
+  }
+  return { ok: true, batches };
+}
+
+// allowPartial=true path: pure continuous math, no need to preserve an
+// exact integer ratio - each batch just takes min(cap, remaining), and
+// each metal gets exactly percentage * batchSize.
+function splitBatchesContinuous(percentages, T, cap) {
+  const batches = [];
+  let remaining = T;
+  while (remaining > 1e-9) {
+    const size = Math.min(cap, remaining);
+    batches.push(percentages.map((p) => (p / 100) * size));
+    remaining -= size;
+  }
+  return { ok: true, batches };
+}
+
+// ---- from batches_greedy.mjs ----
+// ==============================
+// GREEDY FALLBACK BATCH SPLITTER
+// ==============================
+// Used when the exact-ratio integer block doesn't fit under the cap.
+// Fills each batch as close to `cap` as possible using largest-remainder
+// rounding of the ideal percentages, capped by each metal's remaining
+// stock, then does a small corrective pass if rounding pushed any metal
+// outside its own %range for that batch.
+
+function largestRemainderRound(idealAmounts, target) {
+  // idealAmounts: real numbers that should sum to ~target. Returns integers
+  // summing exactly to target (assuming target is itself an integer),
+  // via floor + distributing leftover units to largest fractional parts.
+  const floors = idealAmounts.map(Math.floor);
+  let used = floors.reduce((s, v) => s + v, 0);
+  let leftover = Math.round(target - used);
+  const fracs = idealAmounts.map((v, i) => ({ i, frac: v - floors[i] }));
+  fracs.sort((a, b) => b.frac - a.frac);
+  const result = [...floors];
+  for (let k = 0; k < leftover; k++) {
+    result[fracs[k % fracs.length].i] += 1;
+  }
+  return result;
+}
+
+function splitBatchesGreedy(remainingTotals, percentages, ranges, cap) {
+  const n = remainingTotals.length;
+  let remaining = [...remainingTotals];
+  const batches = [];
+  const warnings = [];
+  let guard = 0;
+
+  while (remaining.some((v) => v > 1e-9) && guard < 10000) {
+    guard++;
+    const sumRemaining = remaining.reduce((s, v) => s + v, 0);
+
+    if (sumRemaining <= cap + 1e-9) {
+      // Last batch: just use whatever's left.
+      batches.push([...remaining]);
+      remaining = remaining.map(() => 0);
+      break;
+    }
+
+    const batchSize = cap;
+    let ideal = percentages.map((p) => (p / 100) * batchSize);
+    // Cap each metal to its remaining stock; track shortfall to redistribute.
+    let shortfall = 0;
+    for (let i = 0; i < n; i++) {
+      if (ideal[i] > remaining[i]) {
+        shortfall += ideal[i] - remaining[i];
+        ideal[i] = remaining[i];
+      }
+    }
+    // Redistribute shortfall proportionally among metals with headroom
+    // (remaining[i] - ideal[i] > 0), a couple of passes is enough in practice.
+    for (let pass = 0; pass < 5 && shortfall > 1e-9; pass++) {
+      const headroom = ideal.map((v, i) => Math.max(0, remaining[i] - v));
+      const totalHeadroom = headroom.reduce((s, v) => s + v, 0);
+      if (totalHeadroom < 1e-9) break;
+      for (let i = 0; i < n; i++) {
+        const give = Math.min(headroom[i], (headroom[i] / totalHeadroom) * shortfall);
+        ideal[i] += give;
+      }
+      const newSum = ideal.reduce((s, v) => s + v, 0);
+      shortfall = batchSize - newSum;
+      if (shortfall < 1e-9) break;
+    }
+
+    let batch = largestRemainderRound(ideal, Math.round(ideal.reduce((s, v) => s + v, 0)));
+    // Clip any rounding overshoot past remaining stock (rare, defensive).
+    for (let i = 0; i < n; i++) batch[i] = Math.min(batch[i], remaining[i]);
+
+    // Corrective pass: if this batch violates any metal's own %range,
+    // nudge one unit at a time from an over-supplied metal (with range
+    // room to spare) to an under-supplied one, up to a bounded number of
+    // tries - a heuristic fix, not a full re-solve.
+    for (let fix = 0; fix < 200; fix++) {
+      const total = batch.reduce((s, v) => s + v, 0);
+      if (total <= 0) break;
+      let worst = -1, worstDir = 0, worstAmt = 0;
+      for (let i = 0; i < n; i++) {
+        const pct = (batch[i] / total) * 100;
+        if (pct < ranges[i].min - 1e-6) {
+          const amt = ranges[i].min - pct;
+          if (amt > worstAmt) { worstAmt = amt; worst = i; worstDir = 1; }
+        } else if (pct > ranges[i].max + 1e-6) {
+          const amt = pct - ranges[i].max;
+          if (amt > worstAmt) { worstAmt = amt; worst = i; worstDir = -1; }
+        }
+      }
+      if (worst === -1) break;
+      if (worstDir === 1) {
+        // worst needs MORE - take 1 unit from whichever other metal has the
+        // most room above its own min and stock to spare.
+        let donor = -1, donorRoom = -1;
+        for (let i = 0; i < n; i++) {
+          if (i === worst || batch[i] <= 0) continue;
+          const pct = ((batch[i] - 1) / total) * 100;
+          if (pct >= ranges[i].min - 1e-6) {
+            const room = batch[i];
+            if (room > donorRoom) { donorRoom = room; donor = i; }
+          }
+        }
+        if (donor === -1) { warnings.push("Could not fully satisfy every range in one batch."); break; }
+        batch[donor] -= 1;
+        batch[worst] += 1;
+      } else {
+        // worst has TOO MUCH - give 1 unit to whichever other metal has
+        // stock remaining and room to grow without breaching its own max.
+        let recv = -1;
+        for (let i = 0; i < n; i++) {
+          if (i === worst) continue;
+          if (batch[i] + 1 > remaining[i] + 1e-9) continue;
+          const pct = ((batch[i] + 1) / total) * 100;
+          if (pct <= ranges[i].max + 1e-6) { recv = i; break; }
+        }
+        if (recv === -1) { warnings.push("Could not fully satisfy every range in one batch."); break; }
+        batch[worst] -= 1;
+        batch[recv] += 1;
+      }
+    }
+
+    batches.push(batch);
+    for (let i = 0; i < n; i++) remaining[i] -= batch[i];
+  }
+
+  return { ok: true, batches, warnings };
+}
+
+// ---- from plan.mjs ----
+// conversion: { mBPerIngot, nuggetsPerIngot }
+function unitToMB(amount, unit, conversion) {
+  if (unit === 'mB') return amount;
+  if (unit === 'ingot') return amount * conversion.mBPerIngot;
+  if (unit === 'nugget') return amount * (conversion.mBPerIngot / conversion.nuggetsPerIngot);
+  throw new Error('unknown unit');
+}
+function mbToUnit(amountMB, unit, conversion) {
+  if (unit === 'mB') return amountMB;
+  if (unit === 'ingot') return amountMB / conversion.mBPerIngot;
+  if (unit === 'nugget') return amountMB / (conversion.mBPerIngot / conversion.nuggetsPerIngot);
+  throw new Error('unknown unit');
+}
+
+// metals: [{ name, color, min, max, amount (in display unit, or null) }]
+function computeAlloyPlan({ metals, unit, conversion, crucibleCap, allowPartial }) {
+  const metalsMB = metals.map((m) => ({
+    ...m,
+    amount: m.amount === null || m.amount === undefined ? null : unitToMB(m.amount, unit, conversion),
+  }));
+
+  const ratioResult = solveRatio(metalsMB);
+  if (!ratioResult.ok) return { ok: false, reason: ratioResult.reason };
+
+  const { percentages, T } = ratioResult;
+  const capMB = unitToMB(crucibleCap, unit, conversion);
+  // Granularity: whole mB if allowPartial, else whole display-units.
+  const granularityMB = allowPartial ? 0 : unitToMB(1, unit, conversion);
+
+  if (T === null) {
+    // Fully unbounded - single "average" batch at the cap (or unspecified
+    // size if no cap given; here we just report the ratio, sized to cap).
+    const batchMB = percentages.map((p) => (p / 100) * capMB);
+    const batch = allowPartial
+      ? batchMB
+      : batchMB.map((v) => Math.round(v / granularityMB) * granularityMB);
+    return {
+      ok: true,
+      unbounded: true,
+      percentages,
+      batches: [batch.map((v) => mbToUnit(v, unit, conversion))],
+    };
+  }
+
+  const totalMB = (percentages.map((p) => (p / 100) * T));
+
+  if (allowPartial) {
+    const { batches } = splitBatchesContinuous(percentages, T, capMB);
+    return {
+      ok: true,
+      unbounded: false,
+      T: mbToUnit(T, unit, conversion),
+      percentages,
+      batches: batches.map((b) => b.map((v) => mbToUnit(v, unit, conversion))),
+    };
+  }
+
+  // Round total-per-metal to whole display units (largest-remainder against T
+  // expressed in display units), THEN convert those integer display-unit
+  // totals into whole-mB space for the splitter (still integers, just scaled).
+  const totalDisplay = totalMB.map((v) => mbToUnit(v, unit, conversion));
+  const targetDisplayTotal = Math.round(mbToUnit(T, unit, conversion));
+  const floors = totalDisplay.map(Math.floor);
+  let used = floors.reduce((s, v) => s + v, 0);
+  let leftover = targetDisplayTotal - used;
+  const fracs = totalDisplay.map((v, i) => ({ i, frac: v - floors[i] })).sort((a, b) => b.frac - a.frac);
+  const roundedDisplay = [...floors];
+  for (let k = 0; k < leftover && k < fracs.length; k++) roundedDisplay[fracs[k].i] += 1;
+
+  const capDisplay = Math.round(mbToUnit(capMB, unit, conversion));
+
+  const integerResult = splitBatchesInteger(roundedDisplay, capDisplay);
+  if (integerResult.ok) {
+    return {
+      ok: true,
+      unbounded: false,
+      T: mbToUnit(T, unit, conversion),
+      percentages,
+      batches: integerResult.batches,
+    };
+  }
+
+  // Fall back to greedy proportional fill.
+  const ranges = metals.map((m) => ({ min: m.min, max: m.max }));
+  const greedy = splitBatchesGreedy(roundedDisplay, percentages, ranges, capDisplay);
+  return {
+    ok: true,
+    unbounded: false,
+    T: mbToUnit(T, unit, conversion),
+    percentages,
+    batches: greedy.batches,
+    warnings: greedy.warnings,
+  };
+}// ==============================
+// PRESET PALETTE (varied, distinct hues for quick metal picks)
+// ==============================
+const PRESET_COLORS = [
+  "#c0392b", "#e67e22", "#f1c40f", "#27ae60",
+  "#16a085", "#2980b9", "#8e44ad", "#c0c0c0",
+  "#b87333", "#7f8c8d", "#2c3e50", "#ecf0f1",
+];
+
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const k = (n) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  const toHex = (x) => Math.round(255 * x).toString(16).padStart(2, "0");
+  return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
+}
+function randomMetalColor() {
+  const h = Math.floor(Math.random() * 360);
+  return hslToHex(h, 62, 54);
+}
+
+// ==============================
+// STATE
+// ==============================
+let nextId = 1;
+function makeMetal(name) {
+  return {
+    id: nextId++,
+    name,
+    color: randomMetalColor(),
+    min: 0,
+    max: 100,
+    isRange: true,
+    amount: null,
+  };
+}
+let metals = [makeMetal("Metal 1"), makeMetal("Metal 2")];
+
+let colorPopoverTargetId = null;
+
+// ==============================
+// DOM refs
+// ==============================
+const metalsRow = document.getElementById("metalsRow");
+const metalCardsContainer = document.getElementById("metalCardsContainer");
+const setupError = document.getElementById("setupError");
+const calcError = document.getElementById("calcError");
+const calculateBtn = document.getElementById("calculateBtn");
+
+const unitSelect = document.getElementById("unitSelect");
+const crucibleCapInput = document.getElementById("crucibleCapInput");
+const allowPartialInput = document.getElementById("allowPartialInput");
+const mbPerIngotInput = document.getElementById("mbPerIngotInput");
+const ingotsInput = document.getElementById("ingotsInput");
+const nuggetsPerIngotInput = document.getElementById("nuggetsPerIngotInput");
+
+const resultsPanel = document.getElementById("resultsPanel");
+const ratioChipRow = document.getElementById("ratioChipRow");
+const totalsLabel = document.getElementById("totalsLabel");
+const totalsBig = document.getElementById("totalsBig");
+const totalsBlobRow = document.getElementById("totalsBlobRow");
+const batchesContainer = document.getElementById("batchesContainer");
+const resultWarning = document.getElementById("resultWarning");
+
+const colorPopover = document.getElementById("colorPopover");
+const colorPopoverInput = document.getElementById("colorPopoverInput");
+const presetSwatches = document.getElementById("presetSwatches");
+
+// ==============================
+// RENDER: squares row
+// ==============================
+function renderMetalsRow() {
+  metalsRow.innerHTML = "";
+  metals.forEach((m) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "metal-square-btn";
+    btn.style.background = m.color;
+    btn.title = m.name;
+    btn.addEventListener("click", (e) => openColorPopover(m.id, btn));
+    metalsRow.appendChild(btn);
+  });
+  const addBtn = document.createElement("button");
+  addBtn.type = "button";
+  addBtn.className = "add-square-btn";
+  addBtn.textContent = "+";
+  addBtn.setAttribute("aria-label", "Add metal");
+  addBtn.addEventListener("click", () => {
+    metals.push(makeMetal(`Metal ${metals.length + 1}`));
+    renderAll();
+    const lastNameInput = metalCardsContainer.querySelector(".metal-card:last-child .metal-name-input");
+    if (lastNameInput) { lastNameInput.focus(); lastNameInput.select(); }
+  });
+  metalsRow.appendChild(addBtn);
+}
+
+// ==============================
+// RENDER: color popover
+// ==============================
+function openColorPopover(metalId, anchorEl) {
+  colorPopoverTargetId = metalId;
+  const metal = metals.find((m) => m.id === metalId);
+  colorPopoverInput.value = metal.color;
+
+  presetSwatches.innerHTML = "";
+  PRESET_COLORS.forEach((c) => {
+    const sw = document.createElement("button");
+    sw.type = "button";
+    sw.className = "preset-swatch";
+    sw.style.background = c;
+    sw.addEventListener("click", () => {
+      setMetalColor(metalId, c);
+      closeColorPopover();
+    });
+    presetSwatches.appendChild(sw);
+  });
+
+  const rect = anchorEl.getBoundingClientRect();
+  colorPopover.style.top = `${window.scrollY + rect.bottom + 8}px`;
+  colorPopover.style.left = `${window.scrollX + rect.left}px`;
+  colorPopover.classList.add("show");
+}
+function closeColorPopover() {
+  colorPopover.classList.remove("show");
+  colorPopoverTargetId = null;
+}
+function setMetalColor(metalId, color) {
+  const metal = metals.find((m) => m.id === metalId);
+  if (!metal) return;
+  metal.color = color;
+  renderMetalsRow();
+  const card = metalCardsContainer.querySelector(`[data-metal-id="${metalId}"]`);
+  if (card) {
+    card.querySelector(".metal-swatch-mini").style.background = color;
+    card.querySelectorAll(".dual-slider-fill").forEach((el) => (el.style.background = color));
+  }
+}
+colorPopoverInput.addEventListener("input", () => {
+  if (colorPopoverTargetId !== null) setMetalColor(colorPopoverTargetId, colorPopoverInput.value);
+});
+document.addEventListener("click", (e) => {
+  if (
+    colorPopover.classList.contains("show") &&
+    !colorPopover.contains(e.target) &&
+    !e.target.classList.contains("metal-square-btn") &&
+    !e.target.classList.contains("metal-swatch-mini")
+  ) {
+    closeColorPopover();
+  }
+});
+
+// ==============================
+// RENDER: metal cards
+// ==============================
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function renderMetalCards() {
+  metalCardsContainer.innerHTML = "";
+  metals.forEach((metal) => {
+    const card = document.createElement("div");
+    card.className = "metal-card";
+    card.dataset.metalId = metal.id;
+
+    // Header: swatch, name, remove
+    const header = document.createElement("div");
+    header.className = "metal-card-header";
+    const swatch = document.createElement("div");
+    swatch.className = "metal-swatch-mini";
+    swatch.style.background = metal.color;
+    swatch.title = "Change color";
+    swatch.addEventListener("click", () => openColorPopover(metal.id, swatch));
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.className = "metal-name-input";
+    nameInput.value = metal.name;
+    nameInput.addEventListener("input", () => { metal.name = nameInput.value; });
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "metal-remove-btn";
+    removeBtn.textContent = "\u2715";
+    removeBtn.title = "Remove metal";
+    removeBtn.addEventListener("click", () => {
+      if (metals.length <= 1) return;
+      metals = metals.filter((m) => m.id !== metal.id);
+      renderAll();
+    });
+    header.appendChild(swatch);
+    header.appendChild(nameInput);
+    header.appendChild(removeBtn);
+    card.appendChild(header);
+
+    // Range toggle
+    const toggleRow = document.createElement("div");
+    toggleRow.className = "range-toggle-row";
+    const toggleLabel = document.createElement("label");
+    const toggleCheckbox = document.createElement("input");
+    toggleCheckbox.type = "checkbox";
+    toggleCheckbox.checked = metal.isRange;
+    toggleCheckbox.addEventListener("change", () => {
+      metal.isRange = toggleCheckbox.checked;
+      if (!metal.isRange) metal.max = metal.min;
+      renderAll();
+    });
+    toggleLabel.appendChild(toggleCheckbox);
+    toggleLabel.appendChild(document.createTextNode("Range (min-max) instead of one fixed %"));
+    toggleRow.appendChild(toggleLabel);
+    card.appendChild(toggleRow);
+
+    // Dual slider
+    const sliderWrap = document.createElement("div");
+    sliderWrap.className = "dual-slider";
+    const track = document.createElement("div");
+    track.className = "dual-slider-track";
+    const fill = document.createElement("div");
+    fill.className = "dual-slider-fill";
+    fill.style.background = metal.color;
+
+    const minRange = document.createElement("input");
+    minRange.type = "range"; minRange.min = 0; minRange.max = 100; minRange.step = 1;
+    minRange.value = metal.min;
+    minRange.style.zIndex = 3;
+
+    const maxRange = document.createElement("input");
+    maxRange.type = "range"; maxRange.min = 0; maxRange.max = 100; maxRange.step = 1;
+    maxRange.value = metal.max;
+    maxRange.style.zIndex = 4;
+    if (!metal.isRange) maxRange.style.display = "none";
+
+    function updateFill() {
+      fill.style.left = `${metal.min}%`;
+      fill.style.width = `${Math.max(0, metal.max - metal.min)}%`;
+    }
+    updateFill();
+
+    minRange.addEventListener("input", () => {
+      let v = clamp(Number(minRange.value), 0, 100);
+      if (v > metal.max) v = metal.max;
+      metal.min = v;
+      if (!metal.isRange) metal.max = v;
+      minRange.value = v;
+      minPctInput.value = v;
+      if (!metal.isRange) maxPctInput.value = v;
+      updateFill();
+    });
+    maxRange.addEventListener("input", () => {
+      let v = clamp(Number(maxRange.value), 0, 100);
+      if (v < metal.min) v = metal.min;
+      metal.max = v;
+      maxRange.value = v;
+      maxPctInput.value = v;
+      updateFill();
+    });
+
+    sliderWrap.appendChild(track);
+    sliderWrap.appendChild(fill);
+    sliderWrap.appendChild(minRange);
+    sliderWrap.appendChild(maxRange);
+    card.appendChild(sliderWrap);
+
+    // Percentage number inputs
+    const pctRow = document.createElement("div");
+    pctRow.className = "pct-inputs";
+    const minField = document.createElement("div");
+    minField.className = "pct-field";
+    const minPctInput = document.createElement("input");
+    minPctInput.type = "number"; minPctInput.min = 0; minPctInput.max = 100;
+    minPctInput.value = metal.min;
+    minField.appendChild(document.createTextNode(metal.isRange ? "Min" : "%"));
+    minField.appendChild(minPctInput);
+    minField.appendChild(document.createElement("span")).textContent = "%";
+
+    minPctInput.addEventListener("input", () => {
+      let v = clamp(Number(minPctInput.value) || 0, 0, 100);
+      if (v > metal.max) v = metal.max;
+      metal.min = v;
+      if (!metal.isRange) metal.max = v;
+      minRange.value = v;
+      if (!metal.isRange) { maxRange.value = v; maxPctInput.value = v; }
+      updateFill();
+    });
+
+    pctRow.appendChild(minField);
+
+    let maxField = null;
+    let maxPctInput = document.createElement("input"); // declared regardless for closure use above
+    if (metal.isRange) {
+      const sep = document.createElement("span");
+      sep.className = "pct-sep";
+      sep.textContent = "\u2013";
+      pctRow.appendChild(sep);
+
+      maxField = document.createElement("div");
+      maxField.className = "pct-field";
+      maxPctInput.type = "number"; maxPctInput.min = 0; maxPctInput.max = 100;
+      maxPctInput.value = metal.max;
+      maxField.appendChild(document.createTextNode("Max"));
+      maxField.appendChild(maxPctInput);
+      maxField.appendChild(document.createElement("span")).textContent = "%";
+
+      maxPctInput.addEventListener("input", () => {
+        let v = clamp(Number(maxPctInput.value) || 0, 0, 100);
+        if (v < metal.min) v = metal.min;
+        metal.max = v;
+        maxRange.value = v;
+        updateFill();
+      });
+
+      pctRow.appendChild(maxField);
+    }
+    card.appendChild(pctRow);
+
+    // Amount row
+    const amountRow = document.createElement("div");
+    amountRow.className = "amount-row";
+    const amountInput = document.createElement("input");
+    amountInput.type = "number"; amountInput.min = 0; amountInput.step = "any";
+    amountInput.placeholder = "How much do you have? (blank = enough)";
+    amountInput.value = metal.amount === null ? "" : metal.amount;
+    amountInput.addEventListener("input", () => {
+      const raw = amountInput.value.trim();
+      metal.amount = raw === "" ? null : Math.max(0, Number(raw));
+    });
+    const unitLabel = document.createElement("span");
+    unitLabel.className = "unit-label";
+    unitLabel.id = `unitLabel-${metal.id}`;
+    unitLabel.textContent = unitDisplayName(unitSelect.value);
+    amountRow.appendChild(amountInput);
+    amountRow.appendChild(unitLabel);
+    card.appendChild(amountRow);
+
+    metalCardsContainer.appendChild(card);
+  });
+}
+
+function unitDisplayName(unit) {
+  if (unit === "mB") return "mB";
+  if (unit === "ingot") return "ingots";
+  if (unit === "nugget") return "nuggets";
+  return unit;
+}
+unitSelect.addEventListener("change", () => {
+  document.querySelectorAll(".unit-label").forEach((el) => (el.textContent = unitDisplayName(unitSelect.value)));
+});
+
+function renderAll() {
+  renderMetalsRow();
+  renderMetalCards();
+}
+renderAll();
+
+// ==============================
+// SAVED SETUPS (metal configuration - names/colors/ranges, not results)
+// ==============================
+const SETUPS_KEY = "alloygauge_setups";
+
+function loadSetups() {
+  try {
+    const raw = localStorage.getItem(SETUPS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    console.error("Storage error (setups):", e);
+    return [];
+  }
+}
+function saveSetupsToStorage(setups) {
+  try {
+    localStorage.setItem(SETUPS_KEY, JSON.stringify(setups));
+  } catch (e) {
+    console.error("Storage error (setups):", e);
+  }
+}
+
+let savedSetups = loadSetups();
+
+const setupNameInput = document.getElementById("setupNameInput");
+const saveSetupBtn = document.getElementById("saveSetupBtn");
+const setupSavedMsg = document.getElementById("setupSavedMsg");
+const savedSetupsList = document.getElementById("savedSetupsList");
+
+const overwriteModalOverlay = document.getElementById("overwriteModalOverlay");
+const overwriteModalMessage = document.getElementById("overwriteModalMessage");
+const overwriteModalClose = document.getElementById("overwriteModalClose");
+const overwriteModalConfirmBtn = document.getElementById("overwriteModalConfirmBtn");
+const overwriteModalCancelBtn = document.getElementById("overwriteModalCancelBtn");
+let pendingSetupSave = null;
+
+function snapshotCurrentMetals() {
+  return metals.map((m) => ({ name: m.name, color: m.color, min: m.min, max: m.max, isRange: m.isRange }));
+}
+
+function performSetupSave(name, metalsSnapshot, existingIndex) {
+  const entry = { name, metals: metalsSnapshot };
+  if (existingIndex >= 0) savedSetups[existingIndex] = entry;
+  else savedSetups.unshift(entry);
+  saveSetupsToStorage(savedSetups);
+  renderSavedSetups();
+  setupSavedMsg.classList.add("show");
+}
+
+function closeOverwriteModal() {
+  overwriteModalOverlay.classList.remove("show");
+  pendingSetupSave = null;
+}
+overwriteModalClose.addEventListener("click", closeOverwriteModal);
+overwriteModalCancelBtn.addEventListener("click", closeOverwriteModal);
+overwriteModalOverlay.addEventListener("click", (e) => {
+  if (e.target === overwriteModalOverlay) closeOverwriteModal();
+});
+overwriteModalConfirmBtn.addEventListener("click", () => {
+  if (!pendingSetupSave) return;
+  const { name, metalsSnapshot, existingIndex } = pendingSetupSave;
+  overwriteModalOverlay.classList.remove("show");
+  pendingSetupSave = null;
+  performSetupSave(name, metalsSnapshot, existingIndex);
+});
+
+saveSetupBtn.addEventListener("click", () => {
+  const name = setupNameInput.value.trim();
+  if (!name) { setupNameInput.focus(); return; }
+  setupSavedMsg.classList.remove("show");
+
+  const existingIndex = savedSetups.findIndex((s) => s.name.toLowerCase() === name.toLowerCase());
+  const metalsSnapshot = snapshotCurrentMetals();
+
+  if (existingIndex >= 0) {
+    pendingSetupSave = { name, metalsSnapshot, existingIndex };
+    overwriteModalMessage.textContent = `A saved setup named "${name}" already exists. Overwriting will replace its metals, ranges, and colors.`;
+    overwriteModalOverlay.classList.add("show");
+    overwriteModalConfirmBtn.focus();
+    return;
+  }
+
+  performSetupSave(name, metalsSnapshot, -1);
+});
+setupNameInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") saveSetupBtn.click();
+});
+
+function loadSetup(setup) {
+  metals = setup.metals.map((m) => ({
+    id: nextId++,
+    name: m.name,
+    color: m.color,
+    min: m.min,
+    max: m.max,
+    isRange: m.isRange,
+    amount: null, // amounts are per-session, never part of a saved setup
+  }));
+  renderAll();
+  resultsPanel.classList.remove("show");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function renderSavedSetups() {
+  savedSetupsList.innerHTML = "";
+  if (!savedSetups.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "No setups saved yet - set up your metals above, then save them here to reuse next time.";
+    savedSetupsList.appendChild(empty);
+    return;
+  }
+  savedSetups.forEach((setup, idx) => {
+    const card = document.createElement("div");
+    card.className = "setup-card";
+
+    const main = document.createElement("div");
+    main.className = "setup-card-main";
+    const nameEl = document.createElement("div");
+    nameEl.className = "setup-card-name";
+    nameEl.textContent = setup.name;
+    const dots = document.createElement("div");
+    dots.className = "setup-dots";
+    setup.metals.forEach((m) => {
+      const dot = document.createElement("span");
+      dot.className = "dot";
+      dot.style.background = m.color;
+      dot.title = m.name;
+      dots.appendChild(dot);
+    });
+    main.appendChild(nameEl);
+    main.appendChild(dots);
+
+    const delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.className = "btn-icon";
+    delBtn.title = `Delete "${setup.name}"`;
+    delBtn.textContent = "\u2715";
+    delBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      savedSetups = savedSetups.filter((_, i) => i !== idx);
+      saveSetupsToStorage(savedSetups);
+      renderSavedSetups();
+    });
+
+    card.appendChild(main);
+    card.appendChild(delBtn);
+    card.addEventListener("click", (e) => {
+      if (e.target === delBtn) return;
+      loadSetup(setup);
+    });
+    savedSetupsList.appendChild(card);
+  });
+}
+renderSavedSetups();
+
+// ==============================
+// CALCULATE
+// ==============================
+function showSetupError(msg) {
+  setupError.textContent = msg;
+  setupError.classList.add("show");
+}
+function clearErrors() {
+  setupError.classList.remove("show"); setupError.textContent = "";
+  calcError.classList.remove("show"); calcError.textContent = "";
+}
+
+calculateBtn.addEventListener("click", () => {
+  clearErrors();
+  resultsPanel.classList.remove("show");
+
+  if (metals.length < 2) {
+    showSetupError("Add at least two metals.");
+    return;
+  }
+  for (const m of metals) {
+    if (!m.name.trim()) { showSetupError("Every metal needs a name."); return; }
+  }
+
+  const capRaw = crucibleCapInput.value.trim();
+  if (!capRaw || Number(capRaw) <= 0) {
+    calcError.textContent = "Enter a crucible cap greater than 0.";
+    calcError.classList.add("show");
+    return;
+  }
+
+  const ingotsRaw = Number(ingotsInput.value);
+  const mbRaw = Number(mbPerIngotInput.value);
+  const nuggetsRaw = Number(nuggetsPerIngotInput.value);
+  const ingotPivot = ingotsRaw > 0 ? ingotsRaw : 1;
+  const conversion = {
+    mBPerIngot: (mbRaw || 144) / ingotPivot,
+    nuggetsPerIngot: (nuggetsRaw || 9) / ingotPivot,
+  };
+
+  const plan = computeAlloyPlan({
+    metals: metals.map((m) => ({ name: m.name, color: m.color, min: m.min, max: m.max, amount: m.amount })),
+    unit: unitSelect.value,
+    conversion,
+    crucibleCap: Number(capRaw),
+    allowPartial: allowPartialInput.checked,
+  });
+
+  if (!plan.ok) {
+    calcError.textContent = plan.reason;
+    calcError.classList.add("show");
+    return;
+  }
+
+  renderResults(plan);
+});
+
+let expandedGroups = new Set();
+let lastPlan = null;
+
+function groupIdenticalBatches(batches) {
+  // Groups consecutive batches with the same composition (within floating-
+  // point noise) so a run of 12 identical full batches renders as one
+  // summary card instead of 12 separate ones.
+  const groups = [];
+  for (const batch of batches) {
+    const key = batch.map((v) => Math.round(v * 1e6) / 1e6).join(",");
+    const last = groups[groups.length - 1];
+    if (last && last.key === key) last.count += 1;
+    else groups.push({ key, batch, count: 1 });
+  }
+  return groups;
+}
+
+function renderResults(plan) {
+  const unitName = unitDisplayName(unitSelect.value);
+  const allowPartial = allowPartialInput.checked;
+  expandedGroups = new Set();
+  lastPlan = plan;
+
+  // ---- Prominent "Maximum possible" headline + per-metal total blobs ----
+  // Totals are summed straight from the batch list (not re-derived from
+  // percentages) so this always matches the detailed breakdown below exactly.
+  const totalsPerMetal = metals.map((_, i) => plan.batches.reduce((s, b) => s + b[i], 0));
+  const grandTotal = totalsPerMetal.reduce((s, v) => s + v, 0);
+
+  totalsLabel.textContent = plan.unbounded ? "Average alloy (per batch)" : "Maximum possible";
+  totalsBig.innerHTML = `${formatAmount(grandTotal, allowPartial)}<span class="totals-unit">${unitName} total</span>`;
+
+  totalsBlobRow.innerHTML = "";
+  metals.forEach((m, i) => {
+    const blob = document.createElement("span");
+    blob.className = "totals-blob";
+    const dot = document.createElement("span");
+    dot.className = "dot";
+    dot.style.background = m.color;
+    blob.appendChild(dot);
+    blob.appendChild(document.createTextNode(`${formatAmount(totalsPerMetal[i], allowPartial)} ${m.name}`));
+    totalsBlobRow.appendChild(blob);
+  });
+
+  // ---- Percentage ratio chips (secondary info) ----
+  ratioChipRow.innerHTML = "";
+  metals.forEach((m, i) => {
+    const chip = document.createElement("span");
+    chip.className = "ratio-chip";
+    const dot = document.createElement("span");
+    dot.className = "dot";
+    dot.style.background = m.color;
+    chip.appendChild(dot);
+    chip.appendChild(document.createTextNode(`${m.name}: ${plan.percentages[i].toFixed(1)}%`));
+    ratioChipRow.appendChild(chip);
+  });
+
+  renderBatchCards(plan, unitName, allowPartial);
+
+  if (plan.warnings && plan.warnings.length) {
+    resultWarning.textContent = plan.warnings.join(" ");
+    resultWarning.style.display = "block";
+  } else {
+    resultWarning.style.display = "none";
+  }
+
+  resultsPanel.classList.add("show");
+}
+
+function renderBatchCards(plan, unitName, allowPartial) {
+  const groups = groupIdenticalBatches(plan.batches);
+  batchesContainer.innerHTML = "";
+
+  groups.forEach((group, groupIdx) => {
+    if (group.count > 1 && !expandedGroups.has(groupIdx)) {
+      batchesContainer.appendChild(
+        makeBatchCard(group.batch, unitName, allowPartial, {
+          grouped: true,
+          count: group.count,
+          groupIdx,
+        })
+      );
+    } else if (group.count > 1 && expandedGroups.has(groupIdx)) {
+      const collapseWrap = document.createElement("div");
+      collapseWrap.style.marginBottom = "10px";
+      const collapseBtn = document.createElement("button");
+      collapseBtn.type = "button";
+      collapseBtn.className = "batch-expand-btn";
+      collapseBtn.textContent = `Collapse back to ${group.count} identical batches`;
+      collapseBtn.addEventListener("click", () => {
+        expandedGroups.delete(groupIdx);
+        renderBatchCards(plan, unitName, allowPartial);
+      });
+      collapseWrap.appendChild(collapseBtn);
+      batchesContainer.appendChild(collapseWrap);
+      for (let k = 0; k < group.count; k++) {
+        batchesContainer.appendChild(makeBatchCard(group.batch, unitName, allowPartial, { grouped: false }));
+      }
+    } else {
+      batchesContainer.appendChild(makeBatchCard(group.batch, unitName, allowPartial, { grouped: false }));
+    }
+  });
+}
+
+function makeBatchCard(batch, unitName, allowPartial, opts) {
+  const card = document.createElement("div");
+  card.className = "batch-card";
+
+  const titleRow = document.createElement("div");
+  titleRow.className = "batch-card-title-row";
+
+  if (opts.grouped) {
+    const title = document.createElement("div");
+    title.className = "batch-card-title grouped";
+    const countEl = document.createElement("span");
+    countEl.className = "batch-group-count";
+    countEl.textContent = opts.count;
+    title.appendChild(countEl);
+    title.appendChild(document.createTextNode("identical batches"));
+    titleRow.appendChild(title);
+
+    const expandBtn = document.createElement("button");
+    expandBtn.type = "button";
+    expandBtn.className = "batch-expand-btn";
+    expandBtn.textContent = "Show individually";
+    expandBtn.addEventListener("click", () => {
+      expandedGroups.add(opts.groupIdx);
+      renderBatchCards(lastPlan, unitName, allowPartial);
+    });
+    titleRow.appendChild(expandBtn);
+  } else {
+    const title = document.createElement("div");
+    title.className = "batch-card-title";
+    title.textContent = "Batch";
+    titleRow.appendChild(title);
+  }
+  card.appendChild(titleRow);
+
+  let total = 0;
+  batch.forEach((amount, i) => {
+    total += amount;
+    const row = document.createElement("div");
+    row.className = "batch-row";
+    const label = document.createElement("span");
+    label.className = "metal-label";
+    const dot = document.createElement("span");
+    dot.className = "dot";
+    dot.style.background = metals[i].color;
+    label.appendChild(dot);
+    label.appendChild(document.createTextNode(metals[i].name));
+    const amt = document.createElement("span");
+    amt.className = "amount";
+    amt.textContent = `${formatAmount(amount, allowPartial)} ${unitName}`;
+    row.appendChild(label);
+    row.appendChild(amt);
+    card.appendChild(row);
+  });
+
+  const totalRow = document.createElement("div");
+  totalRow.className = "batch-total";
+  totalRow.innerHTML = `<span>Total${opts.grouped ? " (per batch)" : ""}</span><span>${formatAmount(total, allowPartial)} ${unitName}</span>`;
+  card.appendChild(totalRow);
+
+  return card;
+}
+
+function formatAmount(v, allowPartial) {
+  return allowPartial ? (Math.round(v * 100) / 100).toString() : Math.round(v).toString();
+}
+
+})();
+</script>
+</body>
+</html>
