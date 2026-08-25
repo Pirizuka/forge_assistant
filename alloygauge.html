@@ -336,21 +336,6 @@
   }
   .metal-remove-btn:hover { color: var(--error); }
 
-  .range-toggle-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-  .range-toggle-row label {
-    font-size: 12.5px;
-    color: var(--text-dim);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-  }
-  .range-toggle-row input[type="checkbox"] { accent-color: var(--quench); width: 14px; height: 14px; }
 
   /* Dual-handle slider (two overlapping range inputs) */
   .dual-slider {
@@ -893,7 +878,7 @@ function solveRatio(metals) {
       sum = mid.reduce((s, v) => s + v, 0);
       diff = 100 - sum;
     }
-    return { ok: true, percentages: mid, T: null }; // T=null => unbounded (no amounts given at all)
+    return { ok: true, percentages: mid, T: null, bottleneckIdx: [] }; // T=null => unbounded (no amounts given at all)
   }
 
   const maxU = uIdx.reduce((s, i) => s + metals[i].max, 0);
@@ -964,6 +949,17 @@ function solveRatio(metals) {
     if (p[i] > 1e-12) T = Math.min(T, (100 * m.amount) / p[i]);
   }
 
+  // The true bottleneck metal(s): whichever constrained metal(s) actually
+  // pin T (their full stated amount is exactly what limits the batch size).
+  // A constrained metal can have p[i] set without being the bottleneck -
+  // e.g. one clipped to its own range max because it's abundant relative
+  // to that range - in which case only part of its stated amount is
+  // actually needed. Computed here (not after an mB<->unit round-trip) to
+  // avoid floating-point drift from unit conversion.
+  const bottleneckIdx = cIdx.filter(
+    (i) => p[i] > 1e-12 && Math.abs((100 * metals[i].amount) / p[i] - T) < Math.max(1e-9, T * 1e-9)
+  );
+
   // Unconstrained metals share the remaining percentage (100 - totalC),
   // proportional to each one's range width (tie-break rule).
   const totalU = 100 - totalC;
@@ -983,55 +979,9 @@ function solveRatio(metals) {
     }
   }
 
-  return { ok: true, percentages: p, T };
+  return { ok: true, percentages: p, T, bottleneckIdx };
 }
 
-// ---- from batches.mjs ----
-// ==============================
-// BATCH SPLITTER
-// ==============================
-// Given final integer (or continuous) per-metal totals to use, and a
-// crucible cap, split into batches each <= cap, each individually
-// respecting every metal's %range.
-
-function gcdMany(nums) {
-  const gcd2 = (a, b) => (b === 0 ? a : gcd2(b, a % b));
-  return nums.reduce((g, n) => gcd2(g, n), 0);
-}
-
-// allowPartial=false path: totals are already whole numbers of the display
-// unit. Uses the GCD of the totals to find the smallest repeating integer
-// "block" that exactly preserves every metal's percentage, then packs as
-// many whole blocks as fit under the cap per batch.
-function splitBatchesInteger(totals, cap) {
-  const n = totals.length;
-  const nonZero = totals.filter((t) => t > 0);
-  const g = gcdMany(nonZero.map((t) => Math.round(t)));
-  if (g <= 0) return { ok: false, reason: "Nothing to split." };
-
-  const block = totals.map((t) => Math.round(t) / g); // per-metal amount in one block
-  const blockTotal = block.reduce((s, v) => s + v, 0);
-  if (blockTotal > cap) {
-    // Even a single base block doesn't fit the cap - can't preserve exact
-    // ratio with whole units at all; caller should fall back to greedy.
-    return { ok: false, reason: "Base ratio unit exceeds the crucible cap." };
-  }
-
-  const totalBlocks = g;
-  const blocksPerBatch = Math.floor(cap / blockTotal);
-  const batches = [];
-  let blocksLeft = totalBlocks;
-  while (blocksLeft > 0) {
-    const take = Math.min(blocksPerBatch, blocksLeft);
-    batches.push(block.map((v) => v * take));
-    blocksLeft -= take;
-  }
-  return { ok: true, batches };
-}
-
-// allowPartial=true path: pure continuous math, no need to preserve an
-// exact integer ratio - each batch just takes min(cap, remaining), and
-// each metal gets exactly percentage * batchSize.
 function splitBatchesContinuous(percentages, T, cap) {
   const batches = [];
   let remaining = T;
@@ -1043,138 +993,204 @@ function splitBatchesContinuous(percentages, T, cap) {
   return { ok: true, batches };
 }
 
-// ---- from batches_greedy.mjs ----
 // ==============================
-// GREEDY FALLBACK BATCH SPLITTER
+// SMART BATCH SPLITTER
 // ==============================
-// Used when the exact-ratio integer block doesn't fit under the cap.
-// Fills each batch as close to `cap` as possible using largest-remainder
-// rounding of the ideal percentages, capped by each metal's remaining
-// stock, then does a small corrective pass if rounding pushed any metal
-// outside its own %range for that batch.
+// Replaces the old (buggy) "grand-total rounding + greedy fill with a blind
+// leftover final batch" pipeline. Instead: for a candidate number of batches
+// K, split each CONSTRAINED metal's true (exact) total as evenly as possible
+// across the K batches, then for each batch independently compute the
+// largest valid total achievable given that batch's fixed constrained-metal
+// amounts (respecting every metal's own %range and the crucible cap). Search
+// a range of K and keep whichever yields the highest valid grand total.
+//
+// This guarantees every batch - including the last one - is independently
+// valid, which the old greedy approach did not.
 
-function largestRemainderRound(idealAmounts, target) {
-  // idealAmounts: real numbers that should sum to ~target. Returns integers
-  // summing exactly to target (assuming target is itself an integer),
-  // via floor + distributing leftover units to largest fractional parts.
-  const floors = idealAmounts.map(Math.floor);
-  let used = floors.reduce((s, v) => s + v, 0);
-  let leftover = Math.round(target - used);
-  const fracs = idealAmounts.map((v, i) => ({ i, frac: v - floors[i] }));
-  fracs.sort((a, b) => b.frac - a.frac);
-  const result = [...floors];
-  for (let k = 0; k < leftover; k++) {
-    result[fracs[k % fracs.length].i] += 1;
-  }
-  return result;
+// Small percentage-point tolerance applied when fitting whole-unit
+// batches. True mathematical exactness (especially for a fixed,
+// zero-width %range like "exactly 13%") is often only achievable at
+// batch sizes that are multiples of huge, impractical numbers (13/100
+// only reduces at multiples of 100) - a small real-world tolerance
+// keeps fixed and narrow ranges usable at realistic crucible sizes
+// while staying negligibly close to the stated target.
+const PCT_TOLERANCE = 0.5;
+
+function distributeEvenly(total, k) {
+  const base = Math.floor(total / k);
+  const remainder = total - base * k;
+  const parts = new Array(k).fill(base);
+  for (let i = 0; i < remainder; i++) parts[i] += 1;
+  return parts;
 }
 
-function splitBatchesGreedy(remainingTotals, percentages, ranges, cap) {
-  const n = remainingTotals.length;
-  let remaining = [...remainingTotals];
-  const batches = [];
-  const warnings = [];
-  let guard = 0;
+function fillFlexibleMetals(uIdxs, metals, total, constrainedSum) {
+  // Distribute (total - constrainedSum) among the flexible (non-bottleneck)
+  // metals, each kept within the integer unit bounds implied by its own
+  // %range at this total. Returns an allocation array (parallel to uIdxs)
+  // or null if no valid integer allocation exists at this exact total.
+  const remaining = total - constrainedSum;
+  if (remaining < -1e-9) return null;
+  if (uIdxs.length === 0) return Math.abs(remaining) < 1e-6 ? [] : null;
 
-  while (remaining.some((v) => v > 1e-9) && guard < 10000) {
-    guard++;
-    const sumRemaining = remaining.reduce((s, v) => s + v, 0);
+  const lower = uIdxs.map((i) => Math.max(0, Math.ceil(((metals[i].min - PCT_TOLERANCE) / 100) * total - 1e-6)));
+  const upper = uIdxs.map((i) => Math.floor(((metals[i].max + PCT_TOLERANCE) / 100) * total + 1e-6));
 
-    if (sumRemaining <= cap + 1e-9) {
-      // Last batch: just use whatever's left.
-      batches.push([...remaining]);
-      remaining = remaining.map(() => 0);
-      break;
+  const sumLower = lower.reduce((s, v) => s + v, 0);
+  const sumUpper = upper.reduce((s, v) => s + v, 0);
+  if (remaining < sumLower - 1e-6 || remaining > sumUpper + 1e-6) return null;
+
+  // Start everyone at their floor and greedily fill up to each one's own
+  // cap (whoever has the most room first) until the remainder is placed.
+  // This always succeeds whenever sumLower <= remaining <= sumUpper, unlike
+  // a one-shot proportional split which can overshoot an individual max.
+  const alloc = [...lower];
+  let toDistribute = Math.round(remaining - sumLower);
+  const roomLeft = uIdxs.map((_, k) => upper[k] - lower[k]);
+
+  while (toDistribute > 0) {
+    let bestK = -1, bestRoom = 0;
+    for (let k = 0; k < uIdxs.length; k++) {
+      if (roomLeft[k] > bestRoom) { bestRoom = roomLeft[k]; bestK = k; }
     }
-
-    const batchSize = cap;
-    let ideal = percentages.map((p) => (p / 100) * batchSize);
-    // Cap each metal to its remaining stock; track shortfall to redistribute.
-    let shortfall = 0;
-    for (let i = 0; i < n; i++) {
-      if (ideal[i] > remaining[i]) {
-        shortfall += ideal[i] - remaining[i];
-        ideal[i] = remaining[i];
-      }
-    }
-    // Redistribute shortfall proportionally among metals with headroom
-    // (remaining[i] - ideal[i] > 0), a couple of passes is enough in practice.
-    for (let pass = 0; pass < 5 && shortfall > 1e-9; pass++) {
-      const headroom = ideal.map((v, i) => Math.max(0, remaining[i] - v));
-      const totalHeadroom = headroom.reduce((s, v) => s + v, 0);
-      if (totalHeadroom < 1e-9) break;
-      for (let i = 0; i < n; i++) {
-        const give = Math.min(headroom[i], (headroom[i] / totalHeadroom) * shortfall);
-        ideal[i] += give;
-      }
-      const newSum = ideal.reduce((s, v) => s + v, 0);
-      shortfall = batchSize - newSum;
-      if (shortfall < 1e-9) break;
-    }
-
-    let batch = largestRemainderRound(ideal, Math.round(ideal.reduce((s, v) => s + v, 0)));
-    // Clip any rounding overshoot past remaining stock (rare, defensive).
-    for (let i = 0; i < n; i++) batch[i] = Math.min(batch[i], remaining[i]);
-
-    // Corrective pass: if this batch violates any metal's own %range,
-    // nudge one unit at a time from an over-supplied metal (with range
-    // room to spare) to an under-supplied one, up to a bounded number of
-    // tries - a heuristic fix, not a full re-solve.
-    for (let fix = 0; fix < 200; fix++) {
-      const total = batch.reduce((s, v) => s + v, 0);
-      if (total <= 0) break;
-      let worst = -1, worstDir = 0, worstAmt = 0;
-      for (let i = 0; i < n; i++) {
-        const pct = (batch[i] / total) * 100;
-        if (pct < ranges[i].min - 1e-6) {
-          const amt = ranges[i].min - pct;
-          if (amt > worstAmt) { worstAmt = amt; worst = i; worstDir = 1; }
-        } else if (pct > ranges[i].max + 1e-6) {
-          const amt = pct - ranges[i].max;
-          if (amt > worstAmt) { worstAmt = amt; worst = i; worstDir = -1; }
-        }
-      }
-      if (worst === -1) break;
-      if (worstDir === 1) {
-        // worst needs MORE - take 1 unit from whichever other metal has the
-        // most room above its own min and stock to spare.
-        let donor = -1, donorRoom = -1;
-        for (let i = 0; i < n; i++) {
-          if (i === worst || batch[i] <= 0) continue;
-          const pct = ((batch[i] - 1) / total) * 100;
-          if (pct >= ranges[i].min - 1e-6) {
-            const room = batch[i];
-            if (room > donorRoom) { donorRoom = room; donor = i; }
-          }
-        }
-        if (donor === -1) { warnings.push("Could not fully satisfy every range in one batch."); break; }
-        batch[donor] -= 1;
-        batch[worst] += 1;
-      } else {
-        // worst has TOO MUCH - give 1 unit to whichever other metal has
-        // stock remaining and room to grow without breaching its own max.
-        let recv = -1;
-        for (let i = 0; i < n; i++) {
-          if (i === worst) continue;
-          if (batch[i] + 1 > remaining[i] + 1e-9) continue;
-          const pct = ((batch[i] + 1) / total) * 100;
-          if (pct <= ranges[i].max + 1e-6) { recv = i; break; }
-        }
-        if (recv === -1) { warnings.push("Could not fully satisfy every range in one batch."); break; }
-        batch[worst] -= 1;
-        batch[recv] += 1;
-      }
-    }
-
-    batches.push(batch);
-    for (let i = 0; i < n; i++) remaining[i] -= batch[i];
+    if (bestK === -1) return null; // shouldn't happen given the feasibility check above
+    const give = Math.min(roomLeft[bestK], toDistribute);
+    alloc[bestK] += give;
+    roomLeft[bestK] -= give;
+    toDistribute -= give;
   }
 
-  return { ok: true, batches, warnings };
+  return alloc;
 }
 
-// ---- from plan.mjs ----
-// conversion: { mBPerIngot, nuggetsPerIngot }
+function computeBatchForConstrainedAmounts(constrainedAmounts, constrainedIdxs, metals, cap) {
+  let maxTotal = cap;
+  let minTotalRequired = 0;
+
+  for (let k = 0; k < constrainedIdxs.length; k++) {
+    const idx = constrainedIdxs[k];
+    const amt = constrainedAmounts[k];
+    const m = metals[idx];
+    if (amt === 0) {
+      if (m.min > 0) return { ok: false };
+      continue;
+    }
+    const effMin = m.min - PCT_TOLERANCE;
+    const upperBoundFromMin = effMin > 0 ? Math.floor(amt / (effMin / 100)) : Infinity;
+    const lowerBoundFromMax = Math.ceil(amt / ((m.max + PCT_TOLERANCE) / 100));
+    maxTotal = Math.min(maxTotal, upperBoundFromMin);
+    minTotalRequired = Math.max(minTotalRequired, lowerBoundFromMax);
+  }
+
+  if (minTotalRequired > maxTotal) return { ok: false };
+
+  const constrainedSum = constrainedAmounts.reduce((s, v) => s + v, 0);
+  const uIdxs = metals.map((_, i) => i).filter((i) => !constrainedIdxs.includes(i));
+
+  // A fixed (zero-width) %range - constrained or flexible - can only be hit
+  // exactly by specific total sizes, not just "the biggest total available".
+  // Search downward from the largest feasible total so we still find the
+  // biggest total that actually works, rather than assuming the max total
+  // is automatically fillable.
+  for (let total = maxTotal; total >= minTotalRequired; total--) {
+    const alloc = fillFlexibleMetals(uIdxs, metals, total, constrainedSum);
+    if (alloc === null) continue;
+
+    const batch = new Array(metals.length).fill(0);
+    constrainedIdxs.forEach((idx, k) => { batch[idx] = constrainedAmounts[k]; });
+    uIdxs.forEach((idx, k) => { batch[idx] = alloc[k]; });
+
+    const finalTotal = batch.reduce((s, v) => s + v, 0);
+    const valid = metals.every((m, i) => {
+      const pct = (batch[i] / finalTotal) * 100;
+      return pct >= m.min - PCT_TOLERANCE - 1e-6 && pct <= m.max + PCT_TOLERANCE + 1e-6;
+    });
+    if (valid) return { ok: true, batch, total: finalTotal };
+  }
+
+  return { ok: false };
+}
+
+// Single-bottleneck exact solver: precomputes, for every whole-number amount
+// s of the bottleneck metal from 1 up to its true total, whether ANY valid
+// batch exists using exactly s units (and the largest total such a batch can
+// reach) - then a coin-change-style DP finds the best way to decompose the
+// true total into a sum of such per-batch amounts, maximizing grand total.
+// This is exact (not a heuristic) and correctly handles cases where only
+// certain amounts happen to be batch-feasible (e.g. a fixed/zero-width
+// %range elsewhere forces the total to be a very specific multiple).
+function splitSingleBottleneckExact(bottleneckIdx, trueAmount, metals, cap) {
+  if (trueAmount <= 0) return null;
+
+  const feasible = new Array(trueAmount + 1).fill(null);
+  for (let s = 1; s <= trueAmount; s++) {
+    const r = computeBatchForConstrainedAmounts([s], [bottleneckIdx], metals, cap);
+    feasible[s] = r.ok ? r : null;
+  }
+
+  const dp = new Array(trueAmount + 1).fill(null);
+  dp[0] = { grandTotal: 0, parts: [] };
+
+  for (let remaining = 1; remaining <= trueAmount; remaining++) {
+    for (let s = 1; s <= remaining; s++) {
+      if (!feasible[s]) continue;
+      const prev = dp[remaining - s];
+      if (!prev) continue;
+      const candidateTotal = prev.grandTotal + feasible[s].total;
+      if (!dp[remaining] || candidateTotal > dp[remaining].grandTotal) {
+        dp[remaining] = { grandTotal: candidateTotal, parts: [...prev.parts, s] };
+      }
+    }
+  }
+
+  const best = dp[trueAmount];
+  if (!best) return null;
+
+  const batches = best.parts.map((s) => feasible[s].batch);
+  return { K: batches.length, batches, grandTotal: best.grandTotal };
+}
+
+// metals: [{ min, max, amount }] - amount is the TRUE INTEGER total to use
+// for constrained metals (non-null), null for unconstrained ones. kMinHint
+// is a starting guess (e.g. ceil(realT/cap)) to center the search around.
+function splitBatchesSmart(metals, cap, kMinHint) {
+  const constrainedIdxs = metals.map((_, i) => i).filter((i) => metals[i].amount !== null);
+  if (constrainedIdxs.length === 0) return null;
+
+  if (constrainedIdxs.length === 1) {
+    const exact = splitSingleBottleneckExact(constrainedIdxs[0], metals[constrainedIdxs[0]].amount, metals, cap);
+    if (exact) return exact;
+    // fall through to the heuristic below as a defensive backstop
+  }
+
+  const trueAmounts = constrainedIdxs.map((i) => metals[i].amount);
+
+  let best = null;
+  const kLo = Math.max(1, kMinHint - 2);
+  const kHi = Math.max(kLo + 10, kMinHint * 3 + 10);
+
+  for (let K = kLo; K <= kHi; K++) {
+    const perMetalParts = trueAmounts.map((amt) => distributeEvenly(amt, K));
+    let grandTotal = 0;
+    const batches = [];
+    let feasible = true;
+
+    for (let b = 0; b < K; b++) {
+      const constrainedAmountsForBatch = perMetalParts.map((parts) => parts[b]);
+      const result = computeBatchForConstrainedAmounts(constrainedAmountsForBatch, constrainedIdxs, metals, cap);
+      if (!result.ok) { feasible = false; break; }
+      batches.push(result.batch);
+      grandTotal += result.total;
+    }
+
+    if (feasible && (!best || grandTotal > best.grandTotal)) {
+      best = { K, batches, grandTotal };
+    }
+  }
+
+  return best;
+}
+
 function unitToMB(amount, unit, conversion) {
   if (unit === 'mB') return amount;
   if (unit === 'ingot') return amount * conversion.mBPerIngot;
@@ -1200,12 +1216,9 @@ function computeAlloyPlan({ metals, unit, conversion, crucibleCap, allowPartial 
 
   const { percentages, T } = ratioResult;
   const capMB = unitToMB(crucibleCap, unit, conversion);
-  // Granularity: whole mB if allowPartial, else whole display-units.
   const granularityMB = allowPartial ? 0 : unitToMB(1, unit, conversion);
 
   if (T === null) {
-    // Fully unbounded - single "average" batch at the cap (or unspecified
-    // size if no cap given; here we just report the ratio, sized to cap).
     const batchMB = percentages.map((p) => (p / 100) * capMB);
     const batch = allowPartial
       ? batchMB
@@ -1218,8 +1231,6 @@ function computeAlloyPlan({ metals, unit, conversion, crucibleCap, allowPartial 
     };
   }
 
-  const totalMB = (percentages.map((p) => (p / 100) * T));
-
   if (allowPartial) {
     const { batches } = splitBatchesContinuous(percentages, T, capMB);
     return {
@@ -1231,43 +1242,41 @@ function computeAlloyPlan({ metals, unit, conversion, crucibleCap, allowPartial 
     };
   }
 
-  // Round total-per-metal to whole display units (largest-remainder against T
-  // expressed in display units), THEN convert those integer display-unit
-  // totals into whole-mB space for the splitter (still integers, just scaled).
-  const totalDisplay = totalMB.map((v) => mbToUnit(v, unit, conversion));
-  const targetDisplayTotal = Math.round(mbToUnit(T, unit, conversion));
-  const floors = totalDisplay.map(Math.floor);
-  let used = floors.reduce((s, v) => s + v, 0);
-  let leftover = targetDisplayTotal - used;
-  const fracs = totalDisplay.map((v, i) => ({ i, frac: v - floors[i] })).sort((a, b) => b.frac - a.frac);
-  const roundedDisplay = [...floors];
-  for (let k = 0; k < leftover && k < fracs.length; k++) roundedDisplay[fracs[k].i] += 1;
-
+  // Determine each metal's TRUE total amount to use across the whole plan.
+  // Only the metal(s) that are the actual BOTTLENECK at the solved ratio -
+  // i.e. their full stated amount is exactly what limits T - have a hard,
+  // must-use-exactly-this-much total. A metal can have a stated amount and
+  // still NOT be the bottleneck (e.g. "I have 997 ingots" of something
+  // whose range caps how much of it fits well before 997 is reached) - for
+  // those, only percentages[i]/100*T of it is actually needed, and forcing
+  // the splitter to fully consume the stated amount over-constrains the
+  // problem (often making it infeasible once more than one metal has a
+  // stated amount).
   const capDisplay = Math.round(mbToUnit(capMB, unit, conversion));
+  const kMinHint = Math.max(1, Math.ceil(mbToUnit(T, unit, conversion) / capDisplay));
 
-  const integerResult = splitBatchesInteger(roundedDisplay, capDisplay);
-  if (integerResult.ok) {
-    return {
-      ok: true,
-      unbounded: false,
-      T: mbToUnit(T, unit, conversion),
-      percentages,
-      batches: integerResult.batches,
-    };
+  const smartMetals = metals.map((m, i) => ({
+    min: m.min,
+    max: m.max,
+    amount: ratioResult.bottleneckIdx.includes(i) ? Math.round(m.amount) : null,
+  }));
+
+  const smart = splitBatchesSmart(smartMetals, capDisplay, kMinHint);
+
+  if (!smart) {
+    return { ok: false, reason: "Couldn't find a valid whole-unit split for these ranges and amounts - try adjusting the crucible cap or ranges." };
   }
 
-  // Fall back to greedy proportional fill.
-  const ranges = metals.map((m) => ({ min: m.min, max: m.max }));
-  const greedy = splitBatchesGreedy(roundedDisplay, percentages, ranges, capDisplay);
   return {
     ok: true,
     unbounded: false,
     T: mbToUnit(T, unit, conversion),
     percentages,
-    batches: greedy.batches,
-    warnings: greedy.warnings,
+    batches: smart.batches,
   };
-}// ==============================
+}
+
+// ==============================
 // PRESET PALETTE (varied, distinct hues for quick metal picks)
 // ==============================
 const PRESET_COLORS = [
@@ -1300,7 +1309,6 @@ function makeMetal(name, color) {
     color: color || randomMetalColor(),
     min: 0,
     max: 100,
-    isRange: true,
     amount: null,
   };
 }
@@ -1459,23 +1467,6 @@ function renderMetalCards() {
     header.appendChild(removeBtn);
     card.appendChild(header);
 
-    // Range toggle
-    const toggleRow = document.createElement("div");
-    toggleRow.className = "range-toggle-row";
-    const toggleLabel = document.createElement("label");
-    const toggleCheckbox = document.createElement("input");
-    toggleCheckbox.type = "checkbox";
-    toggleCheckbox.checked = metal.isRange;
-    toggleCheckbox.addEventListener("change", () => {
-      metal.isRange = toggleCheckbox.checked;
-      if (!metal.isRange) metal.max = metal.min;
-      renderAll();
-    });
-    toggleLabel.appendChild(toggleCheckbox);
-    toggleLabel.appendChild(document.createTextNode("Range (min-max) instead of one fixed %"));
-    toggleRow.appendChild(toggleLabel);
-    card.appendChild(toggleRow);
-
     // Dual slider
     const sliderWrap = document.createElement("div");
     sliderWrap.className = "dual-slider";
@@ -1494,7 +1485,6 @@ function renderMetalCards() {
     maxRange.type = "range"; maxRange.min = 0; maxRange.max = 100; maxRange.step = 1;
     maxRange.value = metal.max;
     maxRange.style.zIndex = 4;
-    if (!metal.isRange) maxRange.style.display = "none";
 
     function updateFill() {
       fill.style.left = `${metal.min}%`;
@@ -1503,18 +1493,16 @@ function renderMetalCards() {
     updateFill();
 
     minRange.addEventListener("input", () => {
-      let v = clamp(Number(minRange.value), 0, 100);
-      if (v > metal.max) v = metal.max;
+      let v = clamp(Number(minRange.value), 0, 99);
+      if (v > metal.max - 1) v = metal.max - 1;
       metal.min = v;
-      if (!metal.isRange) metal.max = v;
       minRange.value = v;
       minPctInput.value = v;
-      if (!metal.isRange) maxPctInput.value = v;
       updateFill();
     });
     maxRange.addEventListener("input", () => {
-      let v = clamp(Number(maxRange.value), 0, 100);
-      if (v < metal.min) v = metal.min;
+      let v = clamp(Number(maxRange.value), 1, 100);
+      if (v < metal.min + 1) v = metal.min + 1;
       metal.max = v;
       maxRange.value = v;
       maxPctInput.value = v;
@@ -1533,50 +1521,45 @@ function renderMetalCards() {
     const minField = document.createElement("div");
     minField.className = "pct-field";
     const minPctInput = document.createElement("input");
-    minPctInput.type = "number"; minPctInput.min = 0; minPctInput.max = 100;
+    minPctInput.type = "number"; minPctInput.min = 0; minPctInput.max = 99;
     minPctInput.value = metal.min;
-    minField.appendChild(document.createTextNode(metal.isRange ? "Min" : "%"));
+    minField.appendChild(document.createTextNode("Min"));
     minField.appendChild(minPctInput);
     minField.appendChild(document.createElement("span")).textContent = "%";
 
     minPctInput.addEventListener("input", () => {
-      let v = clamp(Number(minPctInput.value) || 0, 0, 100);
-      if (v > metal.max) v = metal.max;
+      let v = clamp(Number(minPctInput.value) || 0, 0, 99);
+      if (v > metal.max - 1) v = metal.max - 1;
       metal.min = v;
-      if (!metal.isRange) metal.max = v;
       minRange.value = v;
-      if (!metal.isRange) { maxRange.value = v; maxPctInput.value = v; }
       updateFill();
     });
 
     pctRow.appendChild(minField);
 
-    let maxField = null;
-    let maxPctInput = document.createElement("input"); // declared regardless for closure use above
-    if (metal.isRange) {
-      const sep = document.createElement("span");
-      sep.className = "pct-sep";
-      sep.textContent = "\u2013";
-      pctRow.appendChild(sep);
+    const sep = document.createElement("span");
+    sep.className = "pct-sep";
+    sep.textContent = "\u2013";
+    pctRow.appendChild(sep);
 
-      maxField = document.createElement("div");
-      maxField.className = "pct-field";
-      maxPctInput.type = "number"; maxPctInput.min = 0; maxPctInput.max = 100;
-      maxPctInput.value = metal.max;
-      maxField.appendChild(document.createTextNode("Max"));
-      maxField.appendChild(maxPctInput);
-      maxField.appendChild(document.createElement("span")).textContent = "%";
+    const maxField = document.createElement("div");
+    maxField.className = "pct-field";
+    const maxPctInput = document.createElement("input");
+    maxPctInput.type = "number"; maxPctInput.min = 1; maxPctInput.max = 100;
+    maxPctInput.value = metal.max;
+    maxField.appendChild(document.createTextNode("Max"));
+    maxField.appendChild(maxPctInput);
+    maxField.appendChild(document.createElement("span")).textContent = "%";
 
-      maxPctInput.addEventListener("input", () => {
-        let v = clamp(Number(maxPctInput.value) || 0, 0, 100);
-        if (v < metal.min) v = metal.min;
-        metal.max = v;
-        maxRange.value = v;
-        updateFill();
-      });
+    maxPctInput.addEventListener("input", () => {
+      let v = clamp(Number(maxPctInput.value) || 0, 1, 100);
+      if (v < metal.min + 1) v = metal.min + 1;
+      metal.max = v;
+      maxRange.value = v;
+      updateFill();
+    });
 
-      pctRow.appendChild(maxField);
-    }
+    pctRow.appendChild(maxField);
     card.appendChild(pctRow);
 
     // Amount row
@@ -1655,7 +1638,7 @@ const overwriteModalCancelBtn = document.getElementById("overwriteModalCancelBtn
 let pendingSetupSave = null;
 
 function snapshotCurrentMetals() {
-  return metals.map((m) => ({ name: m.name, color: m.color, min: m.min, max: m.max, isRange: m.isRange }));
+  return metals.map((m) => ({ name: m.name, color: m.color, min: m.min, max: m.max }));
 }
 
 function performSetupSave(name, metalsSnapshot, existingIndex) {
@@ -1707,15 +1690,18 @@ setupNameInput.addEventListener("keydown", (e) => {
 });
 
 function loadSetup(setup) {
-  metals = setup.metals.map((m) => ({
-    id: nextId++,
-    name: m.name,
-    color: m.color,
-    min: m.min,
-    max: m.max,
-    isRange: m.isRange,
-    amount: null, // amounts are per-session, never part of a saved setup
-  }));
+  metals = setup.metals.map((m) => {
+    let min = m.min, max = m.max;
+    if (max - min < 1) max = Math.min(100, min + 1); // guard old saves with a fixed %
+    return {
+      id: nextId++,
+      name: m.name,
+      color: m.color,
+      min,
+      max,
+      amount: null, // amounts are per-session, never part of a saved setup
+    };
+  });
   renderAll();
   resultsPanel.classList.remove("show");
   window.scrollTo({ top: 0, behavior: "smooth" });
