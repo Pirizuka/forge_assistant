@@ -189,7 +189,7 @@
   }
   .error-msg.show { display: block; }
 
-  details.instructions summary, details.settings summary {
+  details.instructions summary, details.settings summary, details.list-details summary {
     cursor: pointer;
     font-family: 'JetBrains Mono', monospace;
     font-size: 11.5px;
@@ -199,10 +199,12 @@
     list-style: none;
   }
   details.instructions summary::-webkit-details-marker,
-  details.settings summary::-webkit-details-marker { display: none; }
+  details.settings summary::-webkit-details-marker,
+  details.list-details summary::-webkit-details-marker { display: none; }
   details.instructions summary::before { content: "\2756 "; }
   details.settings summary::before { content: "\2699 "; }
-  details.instructions[open] summary, details.settings[open] summary { margin-bottom: 14px; }
+  details.list-details summary::before { content: "\2630 "; }
+  details.instructions[open] summary, details.settings[open] summary, details.list-details[open] summary { margin-bottom: 14px; }
   .instructions-body h3 {
     font-family: 'Work Sans', sans-serif;
     font-size: 13.5px;
@@ -414,12 +416,20 @@
     align-items: center;
     gap: 8px;
   }
-  .amount-row input { flex: 1; }
+  .amount-row input { flex: none; width: 150px; text-align: center; }
   .amount-row .unit-label {
     font-size: 12.5px;
     color: var(--text-dim);
     white-space: nowrap;
   }
+
+  .field-warning {
+    color: var(--error);
+    font-size: 12px;
+    margin: -4px 0 8px;
+    display: none;
+  }
+  .field-warning.show { display: block; }
 
   /* ---- Settings ---- */
   .settings-grid {
@@ -739,7 +749,7 @@
   </div>
 
   <p class="eyebrow"><a href="index.html">Forge Assistant</a> &middot; alloy calculator</p>
-  <h1>Alloy<span>Gauge</span> <span class="version-badge">v1.0.2</span></h1>
+  <h1>Alloy<span>Gauge</span> <span class="version-badge">v1.2</span></h1>
   <p class="tagline">
     A generic alloying companion for TerraFirmaCraft.
   </p>
@@ -758,41 +768,10 @@
       <button class="btn-quiet" id="saveSetupBtn">Save</button>
     </div>
     <p class="saved-msg" id="setupSavedMsg">Saved.</p>
-    <div id="savedSetupsList"></div>
-  </div>
-
-  <div class="panel">
-    <p class="panel-title">Settings</p>
-    <div class="settings-grid">
-      <div>
-        <label class="field-label" for="unitSelect">Unit</label>
-        <select id="unitSelect">
-          <option value="mB">Millibuckets (mB)</option>
-          <option value="ingot" selected>Ingots</option>
-          <option value="nugget">Nuggets</option>
-        </select>
-      </div>
-      <div>
-        <label class="field-label" for="crucibleCapInput">Crucible cap</label>
-        <input type="number" id="crucibleCapInput" min="0" placeholder="e.g. 32" value="32"/>
-      </div>
-      <div class="full-width checkbox-row">
-        <input type="checkbox" id="allowPartialInput" />
-        <label for="allowPartialInput">Allow partial amounts (fractional units)</label>
-      </div>
-      <div class="full-width">
-        <label class="field-label">Conversion rate</label>
-        <div class="conversion-row">
-          <input type="number" id="mbPerIngotInput" min="0" step="any" value="144" />
-          <span>mB =</span>
-          <input type="number" id="ingotsInput" min="0" step="any" value="1" />
-          <span>ingot(s) =</span>
-          <input type="number" id="nuggetsPerIngotInput" min="0" step="any" value="9" />
-          <span>nuggets</span>
-        </div>
-        <p class="helper-text">Different mods might define these differently - enter the numbers according to your mod's recipes.</p>
-      </div>
-    </div>
+    <details class="list-details">
+      <summary id="savedSetupsSummary">View saved setups</summary>
+      <div id="savedSetupsList"></div>
+    </details>
   </div>
 
   <button class="btn-primary" id="calculateBtn" style="width:100%; padding:13px;">Calculate</button>
@@ -808,6 +787,42 @@
     <div class="ratio-chip-row" id="ratioChipRow"></div>
     <div id="batchesContainer"></div>
     <p class="warning-msg" id="resultWarning" style="display:none;"></p>
+  </div>
+
+  <div class="panel">
+    <details class="settings">
+      <summary>Settings</summary>
+      <div class="settings-grid">
+        <div>
+          <label class="field-label" for="unitSelect">Unit</label>
+          <select id="unitSelect">
+            <option value="mB">Millibuckets (mB)</option>
+            <option value="ingot" selected>Ingots</option>
+            <option value="nugget">Nuggets</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label" for="crucibleCapInput">Crucible cap</label>
+          <input type="number" id="crucibleCapInput" min="0" placeholder="e.g. 32" value="32"/>
+        </div>
+        <div class="full-width checkbox-row">
+          <input type="checkbox" id="allowPartialInput" />
+          <label for="allowPartialInput">Allow partial amounts (fractional units)</label>
+        </div>
+        <div class="full-width">
+          <label class="field-label">Conversion rate</label>
+          <div class="conversion-row">
+            <input type="number" id="mbPerIngotInput" min="0" step="any" value="144" />
+            <span>mB =</span>
+            <input type="number" id="ingotsInput" min="0" step="any" value="1" />
+            <span>ingot(s) =</span>
+            <input type="number" id="nuggetsPerIngotInput" min="0" step="any" value="9" />
+            <span>nuggets</span>
+          </div>
+          <p class="helper-text">Different mods might define these differently - enter the numbers according to your mod's recipes.</p>
+        </div>
+      </div>
+    </details>
   </div>
 
   <p class="footnote">Runs entirely in your browser - nothing you enter here is sent anywhere.</p>
@@ -1493,20 +1508,18 @@ function renderMetalCards() {
     updateFill();
 
     minRange.addEventListener("input", () => {
-      let v = clamp(Number(minRange.value), 0, 99);
-      if (v > metal.max - 1) v = metal.max - 1;
+      const v = clamp(Number(minRange.value), 0, 100);
       metal.min = v;
-      minRange.value = v;
       minPctInput.value = v;
       updateFill();
+      updateCardValidity();
     });
     maxRange.addEventListener("input", () => {
-      let v = clamp(Number(maxRange.value), 1, 100);
-      if (v < metal.min + 1) v = metal.min + 1;
+      const v = clamp(Number(maxRange.value), 0, 100);
       metal.max = v;
-      maxRange.value = v;
       maxPctInput.value = v;
       updateFill();
+      updateCardValidity();
     });
 
     sliderWrap.appendChild(track);
@@ -1521,18 +1534,18 @@ function renderMetalCards() {
     const minField = document.createElement("div");
     minField.className = "pct-field";
     const minPctInput = document.createElement("input");
-    minPctInput.type = "number"; minPctInput.min = 0; minPctInput.max = 99;
+    minPctInput.type = "number"; minPctInput.min = 0; minPctInput.max = 100;
     minPctInput.value = metal.min;
     minField.appendChild(document.createTextNode("Min"));
     minField.appendChild(minPctInput);
     minField.appendChild(document.createElement("span")).textContent = "%";
 
     minPctInput.addEventListener("input", () => {
-      let v = clamp(Number(minPctInput.value) || 0, 0, 99);
-      if (v > metal.max - 1) v = metal.max - 1;
+      const v = clamp(Number(minPctInput.value) || 0, 0, 100);
       metal.min = v;
       minRange.value = v;
       updateFill();
+      updateCardValidity();
     });
 
     pctRow.appendChild(minField);
@@ -1545,33 +1558,40 @@ function renderMetalCards() {
     const maxField = document.createElement("div");
     maxField.className = "pct-field";
     const maxPctInput = document.createElement("input");
-    maxPctInput.type = "number"; maxPctInput.min = 1; maxPctInput.max = 100;
+    maxPctInput.type = "number"; maxPctInput.min = 0; maxPctInput.max = 100;
     maxPctInput.value = metal.max;
     maxField.appendChild(document.createTextNode("Max"));
     maxField.appendChild(maxPctInput);
     maxField.appendChild(document.createElement("span")).textContent = "%";
 
     maxPctInput.addEventListener("input", () => {
-      let v = clamp(Number(maxPctInput.value) || 0, 1, 100);
-      if (v < metal.min + 1) v = metal.min + 1;
+      const v = clamp(Number(maxPctInput.value) || 0, 0, 100);
       metal.max = v;
       maxRange.value = v;
       updateFill();
+      updateCardValidity();
     });
 
     pctRow.appendChild(maxField);
     card.appendChild(pctRow);
 
+    const rangeWarning = document.createElement("p");
+    rangeWarning.className = "field-warning";
+    rangeWarning.textContent = "Range cannot be less than 1%!";
+    card.appendChild(rangeWarning);
+
     // Amount row
     const amountRow = document.createElement("div");
     amountRow.className = "amount-row";
     const amountInput = document.createElement("input");
-    amountInput.type = "number"; amountInput.min = 0; amountInput.step = "any";
-    amountInput.placeholder = "Available amount (blank for enough)";
+    amountInput.type = "number"; amountInput.step = "any";
+    amountInput.placeholder = "Amount (optional)";
+    amountInput.title = "How much of this metal you have - leave blank if you have enough";
     amountInput.value = metal.amount === null ? "" : metal.amount;
     amountInput.addEventListener("input", () => {
       const raw = amountInput.value.trim();
-      metal.amount = raw === "" ? null : Math.max(0, Number(raw));
+      metal.amount = raw === "" ? null : Number(raw);
+      updateCardValidity();
     });
     const unitLabel = document.createElement("span");
     unitLabel.className = "unit-label";
@@ -1581,8 +1601,36 @@ function renderMetalCards() {
     amountRow.appendChild(unitLabel);
     card.appendChild(amountRow);
 
+    const amountWarning = document.createElement("p");
+    amountWarning.className = "field-warning";
+    amountWarning.textContent = "Amount has to be a whole positive number!";
+    card.appendChild(amountWarning);
+
+    function updateCardValidity() {
+      const rangeOk = metal.max - metal.min >= 1 - 1e-9;
+      rangeWarning.classList.toggle("show", !rangeOk);
+      const amountOk =
+        metal.amount === null ||
+        (Number.isInteger(metal.amount) && metal.amount >= 0 && !isNaN(metal.amount));
+      amountWarning.classList.toggle("show", !amountOk);
+      updateCalculateButtonState();
+    }
+    updateCardValidity();
+
     metalCardsContainer.appendChild(card);
   });
+}
+
+function isMetalValid(metal) {
+  const rangeOk = metal.max - metal.min >= 1 - 1e-9;
+  const amountOk =
+    metal.amount === null ||
+    (Number.isInteger(metal.amount) && metal.amount >= 0 && !isNaN(metal.amount));
+  return rangeOk && amountOk;
+}
+
+function updateCalculateButtonState() {
+  calculateBtn.disabled = !metals.every(isMetalValid);
 }
 
 function unitDisplayName(unit) {
@@ -1708,6 +1756,8 @@ function loadSetup(setup) {
 }
 
 function renderSavedSetups() {
+  const summaryEl = document.getElementById("savedSetupsSummary");
+  if (summaryEl) summaryEl.textContent = `View saved setups (${savedSetups.length})`;
   savedSetupsList.innerHTML = "";
   if (!savedSetups.length) {
     const empty = document.createElement("p");
@@ -1775,6 +1825,8 @@ function clearErrors() {
 calculateBtn.addEventListener("click", () => {
   clearErrors();
   resultsPanel.classList.remove("show");
+
+  if (!metals.every(isMetalValid)) return; // safety guard; button should already be disabled
 
   if (metals.length < 2) {
     showSetupError("Add at least two metals.");
