@@ -64,6 +64,58 @@
   }
   .eyebrow a { color: inherit; }
 
+  .header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .header-titles { flex: 1; min-width: 220px; }
+
+  .swap-tool-btn {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 12px 22px;
+    border-radius: var(--radius);
+    text-decoration: none;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    flex-shrink: 0;
+    transition: border-color 0.15s ease;
+  }
+  .swap-tool-btn:hover { border-color: var(--quench); }
+  .swap-tool-btn::before {
+    content: "";
+    position: absolute;
+    inset: -20%;
+    background: radial-gradient(circle at 50% 50%, rgba(79,182,168,0.20), transparent 70%);
+    z-index: 0;
+  }
+  .swap-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    position: relative;
+    z-index: 1;
+  }
+  .swap-title {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    color: var(--text);
+    position: relative;
+    z-index: 1;
+    white-space: nowrap;
+  }
+  .swap-title span { color: var(--quench); }
+
   h1 {
     font-family: 'Big Shoulders Display', sans-serif;
     font-weight: 800;
@@ -761,8 +813,16 @@
     </details>
   </div>
 
-  <p class="eyebrow"><a href="index.html">Forge Assistant</a> &middot; anvil solver</p>
-  <h1>Forge<span>Gauge</span> <span class="version-badge">v1.1.2</span></h1>
+  <div class="header-row">
+    <div class="header-titles">
+      <p class="eyebrow"><a href="index.html">Forge Assistant</a> &middot; anvil solver</p>
+      <h1>Forge<span>Gauge</span> <span class="version-badge">v1.1.2</span></h1>
+    </div>
+    <a class="swap-tool-btn" href="alloygauge.html">
+      <span class="swap-label">Swap to</span>
+      <span class="swap-title">Alloy<span>Gauge</span></span>
+    </a>
+  </div>
   <p class="tagline">
     An anvil companion for TerraFirmaCraft.
   </p>

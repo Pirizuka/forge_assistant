@@ -50,6 +50,58 @@
   }
   .eyebrow a { color: inherit; }
 
+  .header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .header-titles { flex: 1; min-width: 220px; }
+
+  .swap-tool-btn {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 12px 22px;
+    border-radius: var(--radius);
+    text-decoration: none;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    flex-shrink: 0;
+    transition: border-color 0.15s ease;
+  }
+  .swap-tool-btn:hover { border-color: var(--ember); }
+  .swap-tool-btn::before {
+    content: "";
+    position: absolute;
+    inset: -20%;
+    background: radial-gradient(circle at 50% 50%, rgba(255,122,61,0.20), transparent 70%);
+    z-index: 0;
+  }
+  .swap-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    position: relative;
+    z-index: 1;
+  }
+  .swap-title {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    color: var(--text);
+    position: relative;
+    z-index: 1;
+    white-space: nowrap;
+  }
+  .swap-title span { color: var(--ember); }
+
   h1 {
     font-family: 'Big Shoulders Display', sans-serif;
     font-weight: 800;
@@ -292,6 +344,13 @@
     padding: 0;
   }
   .preset-swatch:hover { outline: 2px solid var(--gold); outline-offset: 1px; }
+  .eyedropper-swatch {
+    background: var(--panel-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
 
   /* ---- Metal card (name, slider, amount) ---- */
   .metal-card {
@@ -416,7 +475,7 @@
     align-items: center;
     gap: 8px;
   }
-  .amount-row input { flex: none; width: 150px; text-align: center; }
+  .amount-row input { flex: none; width: 190px; text-align: center; }
   .amount-row .unit-label {
     font-size: 12.5px;
     color: var(--text-dim);
@@ -613,6 +672,17 @@
     margin-bottom: 12px;
   }
   .save-setup-row input { flex: 1; }
+  .setup-color-swatch {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: 2px solid rgba(255,255,255,0.15);
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+  }
+  .setup-color-swatch:hover { border-color: var(--gold); }
+  .setup-card .setup-color-swatch { width: 30px; height: 30px; border-radius: 7px; }
   .saved-msg {
     color: var(--quench);
     font-size: 13px;
@@ -620,6 +690,16 @@
     display: none;
   }
   .saved-msg.show { display: block; }
+
+  .save-list-controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .save-list-controls input[type="search"] { flex: 1; min-width: 140px; }
+  .save-sort-toggle { display: flex; gap: 6px; }
+  .btn-quiet.active { border-color: var(--gold); color: var(--gold); }
 
   .setup-card {
     display: flex;
@@ -634,6 +714,7 @@
     cursor: pointer;
   }
   .setup-card:hover { border-color: var(--quench-dim); }
+  .setup-card-left { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
   .setup-card-main { min-width: 0; flex: 1; }
   .setup-card-name { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
   .setup-dots { display: flex; gap: 5px; }
@@ -748,8 +829,16 @@
     </details>
   </div>
 
-  <p class="eyebrow"><a href="index.html">Forge Assistant</a> &middot; alloy calculator</p>
-  <h1>Alloy<span>Gauge</span> <span class="version-badge">v1.2</span></h1>
+  <div class="header-row">
+    <div class="header-titles">
+      <p class="eyebrow"><a href="index.html">Forge Assistant</a> &middot; alloy calculator</p>
+      <h1>Alloy<span>Gauge</span> <span class="version-badge">v1.3</span></h1>
+    </div>
+    <a class="swap-tool-btn" href="forgegauge.html">
+      <span class="swap-label">Swap to</span>
+      <span class="swap-title">Forge<span>Gauge</span></span>
+    </a>
+  </div>
   <p class="tagline">
     A generic alloying companion for TerraFirmaCraft.
   </p>
@@ -764,12 +853,20 @@
   <div class="panel">
     <p class="panel-title">Saved setups</p>
     <div class="save-setup-row">
+      <button type="button" class="setup-color-swatch color-target-btn" id="newSetupColorSwatch" title="Pick a color for this saved setup"></button>
       <input type="text" id="setupNameInput" placeholder="Name this setup (e.g. Weak Steel)" />
       <button class="btn-quiet" id="saveSetupBtn">Save</button>
     </div>
     <p class="saved-msg" id="setupSavedMsg">Saved.</p>
     <details class="list-details">
       <summary id="savedSetupsSummary">View saved setups</summary>
+      <div class="save-list-controls">
+        <input type="search" id="setupSearchInput" placeholder="Search by name..." autocomplete="off" />
+        <div class="save-sort-toggle">
+          <button class="btn-quiet active" id="setupSortRecentBtn" type="button">Recent</button>
+          <button class="btn-quiet" id="setupSortAzBtn" type="button">A-Z</button>
+        </div>
+      </div>
       <div id="savedSetupsList"></div>
     </details>
   </div>
@@ -1297,7 +1394,7 @@ function computeAlloyPlan({ metals, unit, conversion, crucibleCap, allowPartial 
 const PRESET_COLORS = [
   "#c0392b", "#e67e22", "#f1c40f", "#27ae60",
   "#16a085", "#2980b9", "#8e44ad", "#c0c0c0",
-  "#b87333", "#7f8c8d", "#2c3e50", "#ecf0f1",
+  "#b87333", "#7f8c8d", "#2c3e50",
 ];
 
 function hslToHex(h, s, l) {
@@ -1328,8 +1425,6 @@ function makeMetal(name, color) {
   };
 }
 let metals = [makeMetal("Metal 1", "#ff7a3d"), makeMetal("Metal 2", "#4fb6a8")];
-
-let colorPopoverTargetId = null;
 
 // ==============================
 // DOM refs
@@ -1367,7 +1462,7 @@ function renderMetalsRow() {
   metals.forEach((m) => {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "metal-square-btn";
+    btn.className = "metal-square-btn color-target-btn";
     btn.style.background = m.color;
     btn.title = m.name;
     btn.addEventListener("click", (e) => openColorPopover(m.id, btn));
@@ -1390,19 +1485,38 @@ function renderMetalsRow() {
 // ==============================
 // RENDER: color popover
 // ==============================
-function openColorPopover(metalId, anchorEl) {
-  colorPopoverTargetId = metalId;
-  const metal = metals.find((m) => m.id === metalId);
-  colorPopoverInput.value = metal.color;
+let colorPopoverOnChange = null;
+
+function openColorPopoverGeneric(currentColor, anchorEl, onChange) {
+  colorPopoverOnChange = onChange;
+  colorPopoverInput.value = currentColor;
 
   presetSwatches.innerHTML = "";
+
+  if (window.EyeDropper) {
+    const eyeBtn = document.createElement("button");
+    eyeBtn.type = "button";
+    eyeBtn.className = "preset-swatch eyedropper-swatch color-target-btn";
+    eyeBtn.title = "Pick a color from your screen";
+    eyeBtn.textContent = "\u{1F4A7}";
+    eyeBtn.addEventListener("click", async () => {
+      try {
+        const ed = new EyeDropper();
+        const result = await ed.open();
+        if (colorPopoverOnChange) colorPopoverOnChange(result.sRGBHex);
+        closeColorPopover();
+      } catch (e) { /* user cancelled the pick - do nothing */ }
+    });
+    presetSwatches.appendChild(eyeBtn);
+  }
+
   PRESET_COLORS.forEach((c) => {
     const sw = document.createElement("button");
     sw.type = "button";
-    sw.className = "preset-swatch";
+    sw.className = "preset-swatch color-target-btn";
     sw.style.background = c;
     sw.addEventListener("click", () => {
-      setMetalColor(metalId, c);
+      if (colorPopoverOnChange) colorPopoverOnChange(c);
       closeColorPopover();
     });
     presetSwatches.appendChild(sw);
@@ -1413,9 +1527,13 @@ function openColorPopover(metalId, anchorEl) {
   colorPopover.style.left = `${window.scrollX + rect.left}px`;
   colorPopover.classList.add("show");
 }
+function openColorPopover(metalId, anchorEl) {
+  const metal = metals.find((m) => m.id === metalId);
+  openColorPopoverGeneric(metal.color, anchorEl, (color) => setMetalColor(metalId, color));
+}
 function closeColorPopover() {
   colorPopover.classList.remove("show");
-  colorPopoverTargetId = null;
+  colorPopoverOnChange = null;
 }
 function setMetalColor(metalId, color) {
   const metal = metals.find((m) => m.id === metalId);
@@ -1429,14 +1547,13 @@ function setMetalColor(metalId, color) {
   }
 }
 colorPopoverInput.addEventListener("input", () => {
-  if (colorPopoverTargetId !== null) setMetalColor(colorPopoverTargetId, colorPopoverInput.value);
+  if (colorPopoverOnChange) colorPopoverOnChange(colorPopoverInput.value);
 });
 document.addEventListener("click", (e) => {
   if (
     colorPopover.classList.contains("show") &&
     !colorPopover.contains(e.target) &&
-    !e.target.classList.contains("metal-square-btn") &&
-    !e.target.classList.contains("metal-swatch-mini")
+    !e.target.classList.contains("color-target-btn")
   ) {
     closeColorPopover();
   }
@@ -1458,7 +1575,7 @@ function renderMetalCards() {
     const header = document.createElement("div");
     header.className = "metal-card-header";
     const swatch = document.createElement("div");
-    swatch.className = "metal-swatch-mini";
+    swatch.className = "metal-swatch-mini color-target-btn";
     swatch.style.background = metal.color;
     swatch.title = "Change color";
     swatch.addEventListener("click", () => openColorPopover(metal.id, swatch));
@@ -1585,7 +1702,7 @@ function renderMetalCards() {
     amountRow.className = "amount-row";
     const amountInput = document.createElement("input");
     amountInput.type = "number"; amountInput.step = "any";
-    amountInput.placeholder = "Amount";
+    amountInput.placeholder = "Amount (optional)";
     amountInput.title = "How much of this metal you have - leave blank if you have enough";
     amountInput.value = metal.amount === null ? "" : metal.amount;
     amountInput.addEventListener("input", () => {
@@ -1672,11 +1789,43 @@ function saveSetupsToStorage(setups) {
 }
 
 let savedSetups = loadSetups();
+let newSetupColor = randomMetalColor();
+let setupSortMode = "recent";
+let setupSearchQuery = "";
 
 const setupNameInput = document.getElementById("setupNameInput");
 const saveSetupBtn = document.getElementById("saveSetupBtn");
 const setupSavedMsg = document.getElementById("setupSavedMsg");
 const savedSetupsList = document.getElementById("savedSetupsList");
+const newSetupColorSwatch = document.getElementById("newSetupColorSwatch");
+const setupSearchInput = document.getElementById("setupSearchInput");
+const setupSortRecentBtn = document.getElementById("setupSortRecentBtn");
+const setupSortAzBtn = document.getElementById("setupSortAzBtn");
+
+newSetupColorSwatch.style.background = newSetupColor;
+newSetupColorSwatch.addEventListener("click", () => {
+  openColorPopoverGeneric(newSetupColor, newSetupColorSwatch, (color) => {
+    newSetupColor = color;
+    newSetupColorSwatch.style.background = color;
+  });
+});
+
+setupSearchInput.addEventListener("input", () => {
+  setupSearchQuery = setupSearchInput.value.trim().toLowerCase();
+  renderSavedSetups();
+});
+setupSortRecentBtn.addEventListener("click", () => {
+  setupSortMode = "recent";
+  setupSortRecentBtn.classList.add("active");
+  setupSortAzBtn.classList.remove("active");
+  renderSavedSetups();
+});
+setupSortAzBtn.addEventListener("click", () => {
+  setupSortMode = "az";
+  setupSortAzBtn.classList.add("active");
+  setupSortRecentBtn.classList.remove("active");
+  renderSavedSetups();
+});
 
 const overwriteModalOverlay = document.getElementById("overwriteModalOverlay");
 const overwriteModalMessage = document.getElementById("overwriteModalMessage");
@@ -1690,12 +1839,14 @@ function snapshotCurrentMetals() {
 }
 
 function performSetupSave(name, metalsSnapshot, existingIndex) {
-  const entry = { name, metals: metalsSnapshot };
+  const entry = { name, metals: metalsSnapshot, color: newSetupColor };
   if (existingIndex >= 0) savedSetups[existingIndex] = entry;
   else savedSetups.unshift(entry);
   saveSetupsToStorage(savedSetups);
   renderSavedSetups();
   setupSavedMsg.classList.add("show");
+  newSetupColor = randomMetalColor();
+  newSetupColorSwatch.style.background = newSetupColor;
 }
 
 function closeOverwriteModal() {
@@ -1759,16 +1910,45 @@ function renderSavedSetups() {
   const summaryEl = document.getElementById("savedSetupsSummary");
   if (summaryEl) summaryEl.textContent = `View saved setups (${savedSetups.length})`;
   savedSetupsList.innerHTML = "";
-  if (!savedSetups.length) {
+
+  let list = savedSetups
+    .map((setup, idx) => ({ setup, idx }))
+    .filter(({ setup }) => !setupSearchQuery || setup.name.toLowerCase().includes(setupSearchQuery));
+
+  if (!list.length) {
     const empty = document.createElement("p");
     empty.className = "empty-state";
-    empty.textContent = "No setups saved yet - set up your metals above, then save them here to reuse next time.";
+    empty.textContent = savedSetups.length
+      ? "No saved setups match that search."
+      : "No setups saved yet - set up your metals above, then save them here to reuse next time.";
     savedSetupsList.appendChild(empty);
     return;
   }
-  savedSetups.forEach((setup, idx) => {
+
+  if (setupSortMode === "az") {
+    list = [...list].sort((a, b) => a.setup.name.toLowerCase().localeCompare(b.setup.name.toLowerCase()));
+  }
+
+  list.forEach(({ setup, idx }) => {
     const card = document.createElement("div");
     card.className = "setup-card";
+
+    const left = document.createElement("div");
+    left.className = "setup-card-left";
+
+    const colorSwatch = document.createElement("button");
+    colorSwatch.type = "button";
+    colorSwatch.className = "setup-color-swatch color-target-btn";
+    colorSwatch.title = "Change this setup's color";
+    colorSwatch.style.background = setup.color || "#8a8378";
+    colorSwatch.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openColorPopoverGeneric(setup.color || "#8a8378", colorSwatch, (color) => {
+        setup.color = color;
+        colorSwatch.style.background = color;
+        saveSetupsToStorage(savedSetups);
+      });
+    });
 
     const main = document.createElement("div");
     main.className = "setup-card-main";
@@ -1787,6 +1967,9 @@ function renderSavedSetups() {
     main.appendChild(nameEl);
     main.appendChild(dots);
 
+    left.appendChild(colorSwatch);
+    left.appendChild(main);
+
     const delBtn = document.createElement("button");
     delBtn.type = "button";
     delBtn.className = "btn-icon";
@@ -1799,10 +1982,10 @@ function renderSavedSetups() {
       renderSavedSetups();
     });
 
-    card.appendChild(main);
+    card.appendChild(left);
     card.appendChild(delBtn);
     card.addEventListener("click", (e) => {
-      if (e.target === delBtn) return;
+      if (e.target === delBtn || e.target === colorSwatch) return;
       loadSetup(setup);
     });
     savedSetupsList.appendChild(card);
