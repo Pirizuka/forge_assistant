@@ -1847,7 +1847,7 @@ function renderMetalCards() {
 function isAmountValid(amount, allowPartial) {
   if (amount === null) return true;
   if (isNaN(amount)) return false;
-  if (amount < 0) return false;
+  if (amount <= 0) return false;
   if (!allowPartial && !Number.isInteger(amount)) return false;
   return true;
 }
