@@ -101,6 +101,33 @@
     white-space: nowrap;
   }
   .swap-title span { color: var(--ember); }
+  .swap-full { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .swap-icon { display: none; font-size: 15px; position: relative; z-index: 1; line-height: 1; }
+  .swap-short { display: none; }
+
+  @media (max-width: 480px) {
+    .header-row {
+      flex-direction: column-reverse;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .swap-tool-btn {
+      flex-direction: row;
+      padding: 10px 16px;
+      gap: 7px;
+    }
+    .swap-full { display: none; }
+    .swap-icon { display: inline-block; }
+    .swap-short {
+      display: inline-block;
+      font-family: 'Work Sans', sans-serif;
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text);
+      position: relative;
+      z-index: 1;
+    }
+  }
 
   h1 {
     font-family: 'Big Shoulders Display', sans-serif;
@@ -517,6 +544,7 @@
   .pct-inputs input[type="number"] { text-align: center; width: 64px; flex: none; }
   .pct-inputs span { font-size: 12px; color: var(--text-dim); }
   .pct-sep { color: var(--text-dim); font-size: 13px; }
+  .pct-row-label { font-size: 13px; color: var(--text-dim); margin-right: 2px; }
 
   .amount-row {
     display: flex;
@@ -893,8 +921,12 @@
       <h1>Alloy<span>Gauge</span> <span class="version-badge">v1.3</span></h1>
     </div>
     <a class="swap-tool-btn" href="forgegauge.html">
-      <span class="swap-label">Swap to</span>
-      <span class="swap-title">Forge<span>Gauge</span></span>
+      <span class="swap-icon">&#128260;</span>
+      <span class="swap-full">
+        <span class="swap-label">Swap to</span>
+        <span class="swap-title">Forge<span>Gauge</span></span>
+      </span>
+      <span class="swap-short">Swap</span>
     </a>
   </div>
   <p class="tagline">
@@ -1501,6 +1533,9 @@ const calculateBtn = document.getElementById("calculateBtn");
 const unitSelect = document.getElementById("unitSelect");
 const crucibleCapInput = document.getElementById("crucibleCapInput");
 const allowPartialInput = document.getElementById("allowPartialInput");
+allowPartialInput.addEventListener("change", () => {
+  cardValidityUpdaters.forEach((fn) => fn());
+});
 const mbPerIngotInput = document.getElementById("mbPerIngotInput");
 const ingotsInput = document.getElementById("ingotsInput");
 const nuggetsPerIngotInput = document.getElementById("nuggetsPerIngotInput");
@@ -1627,8 +1662,10 @@ document.addEventListener("click", (e) => {
 // ==============================
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
+let cardValidityUpdaters = [];
 function renderMetalCards() {
   metalCardsContainer.innerHTML = "";
+  cardValidityUpdaters = [];
   metals.forEach((metal) => {
     const card = document.createElement("div");
     card.className = "metal-card";
@@ -1711,12 +1748,16 @@ function renderMetalCards() {
     // Percentage number inputs
     const pctRow = document.createElement("div");
     pctRow.className = "pct-inputs";
+    const rangeLabel = document.createElement("span");
+    rangeLabel.className = "pct-row-label";
+    rangeLabel.textContent = "Range:";
+    pctRow.appendChild(rangeLabel);
+
     const minField = document.createElement("div");
     minField.className = "pct-field";
     const minPctInput = document.createElement("input");
     minPctInput.type = "number"; minPctInput.min = 0; minPctInput.max = 100;
     minPctInput.value = metal.min;
-    minField.appendChild(document.createTextNode("Min"));
     minField.appendChild(minPctInput);
     minField.appendChild(document.createElement("span")).textContent = "%";
 
@@ -1740,7 +1781,6 @@ function renderMetalCards() {
     const maxPctInput = document.createElement("input");
     maxPctInput.type = "number"; maxPctInput.min = 0; maxPctInput.max = 100;
     maxPctInput.value = metal.max;
-    maxField.appendChild(document.createTextNode("Max"));
     maxField.appendChild(maxPctInput);
     maxField.appendChild(document.createElement("span")).textContent = "%";
 
@@ -1789,23 +1829,32 @@ function renderMetalCards() {
     function updateCardValidity() {
       const rangeOk = metal.max - metal.min >= 1 - 1e-9;
       rangeWarning.classList.toggle("show", !rangeOk);
-      const amountOk =
-        metal.amount === null ||
-        (Number.isInteger(metal.amount) && metal.amount >= 0 && !isNaN(metal.amount));
+      const allowPartial = allowPartialInput.checked;
+      const amountOk = isAmountValid(metal.amount, allowPartial);
+      amountWarning.textContent = allowPartial
+        ? "Amount has to be a positive number!"
+        : "Amount has to be a whole positive number!";
       amountWarning.classList.toggle("show", !amountOk);
       updateCalculateButtonState();
     }
     updateCardValidity();
+    cardValidityUpdaters.push(updateCardValidity);
 
     metalCardsContainer.appendChild(card);
   });
 }
 
+function isAmountValid(amount, allowPartial) {
+  if (amount === null) return true;
+  if (isNaN(amount)) return false;
+  if (amount < 0) return false;
+  if (!allowPartial && !Number.isInteger(amount)) return false;
+  return true;
+}
+
 function isMetalValid(metal) {
   const rangeOk = metal.max - metal.min >= 1 - 1e-9;
-  const amountOk =
-    metal.amount === null ||
-    (Number.isInteger(metal.amount) && metal.amount >= 0 && !isNaN(metal.amount));
+  const amountOk = isAmountValid(metal.amount, allowPartialInput.checked);
   return rangeOk && amountOk;
 }
 
