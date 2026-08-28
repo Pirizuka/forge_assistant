@@ -108,7 +108,7 @@
   @media (max-width: 480px) {
     .header-row {
       flex-direction: column-reverse;
-      align-items: flex-start;
+      align-items: flex-end;
       gap: 10px;
     }
     .swap-tool-btn {
@@ -675,10 +675,25 @@
   .batch-card-title-row {
     display: flex;
     align-items: baseline;
-    justify-content: space-between;
-    gap: 10px;
+    flex-wrap: wrap;
+    gap: 6px 10px;
     margin-bottom: 10px;
   }
+  .batch-expand-btn { margin-left: auto; }
+  .batch-true-pcts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px 8px;
+  }
+  .batch-pct-chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .batch-pct-chip .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
   .batch-card-title {
     font-family: 'JetBrains Mono', monospace;
     font-size: 11.5px;
@@ -976,7 +991,6 @@
       <p class="totals-big" id="totalsBig"></p>
       <div class="totals-blob-row" id="totalsBlobRow"></div>
     </div>
-    <div class="ratio-chip-row" id="ratioChipRow"></div>
     <div id="batchesContainer"></div>
     <p class="warning-msg" id="resultWarning" style="display:none;"></p>
   </div>
@@ -1541,7 +1555,6 @@ const ingotsInput = document.getElementById("ingotsInput");
 const nuggetsPerIngotInput = document.getElementById("nuggetsPerIngotInput");
 
 const resultsPanel = document.getElementById("resultsPanel");
-const ratioChipRow = document.getElementById("ratioChipRow");
 const totalsLabel = document.getElementById("totalsLabel");
 const totalsBig = document.getElementById("totalsBig");
 const totalsBlobRow = document.getElementById("totalsBlobRow");
@@ -2229,18 +2242,10 @@ function renderResults(plan) {
     totalsBlobRow.appendChild(blob);
   });
 
-  // ---- Percentage ratio chips (secondary info) ----
-  ratioChipRow.innerHTML = "";
-  metals.forEach((m, i) => {
-    const chip = document.createElement("span");
-    chip.className = "ratio-chip";
-    const dot = document.createElement("span");
-    dot.className = "dot";
-    dot.style.background = m.color;
-    chip.appendChild(dot);
-    chip.appendChild(document.createTextNode(`${m.name}: ${plan.percentages[i].toFixed(1)}%`));
-    ratioChipRow.appendChild(chip);
-  });
+  // Note: plan.percentages are the solver's internal TARGET ratio (e.g. the
+  // scarce metal pinned to its lowest allowed % to maximize batch size) -
+  // not necessarily what any single rounded batch actually contains. Not
+  // shown directly; each batch card shows its own true percentages instead.
 
   renderBatchCards(plan, unitName, allowPartial);
 
@@ -2293,6 +2298,8 @@ function makeBatchCard(batch, unitName, allowPartial, opts) {
   const card = document.createElement("div");
   card.className = "batch-card";
 
+  const trueTotal = batch.reduce((s, v) => s + v, 0);
+
   const titleRow = document.createElement("div");
   titleRow.className = "batch-card-title-row";
 
@@ -2305,7 +2312,34 @@ function makeBatchCard(batch, unitName, allowPartial, opts) {
     title.appendChild(countEl);
     title.appendChild(document.createTextNode("identical batches"));
     titleRow.appendChild(title);
+  } else {
+    const title = document.createElement("div");
+    title.className = "batch-card-title";
+    title.textContent = "Batch";
+    titleRow.appendChild(title);
+  }
 
+  // True percentages of THIS batch as actually shown (not the solver's
+  // internal target ratio, which can differ once amounts are rounded to
+  // whole units - e.g. a scarce metal pinned to its lowest allowed % to
+  // maximize batch size won't necessarily match what one rounded batch
+  // contains).
+  const pctWrap = document.createElement("div");
+  pctWrap.className = "batch-true-pcts";
+  metals.forEach((m, i) => {
+    const chip = document.createElement("span");
+    chip.className = "batch-pct-chip";
+    const dot = document.createElement("span");
+    dot.className = "dot";
+    dot.style.background = m.color;
+    const pct = trueTotal > 0 ? (batch[i] / trueTotal) * 100 : 0;
+    chip.appendChild(dot);
+    chip.appendChild(document.createTextNode(`${m.name}: ${pct.toFixed(2)}%`));
+    pctWrap.appendChild(chip);
+  });
+  titleRow.appendChild(pctWrap);
+
+  if (opts.grouped) {
     const expandBtn = document.createElement("button");
     expandBtn.type = "button";
     expandBtn.className = "batch-expand-btn";
@@ -2315,11 +2349,6 @@ function makeBatchCard(batch, unitName, allowPartial, opts) {
       renderBatchCards(lastPlan, unitName, allowPartial);
     });
     titleRow.appendChild(expandBtn);
-  } else {
-    const title = document.createElement("div");
-    title.className = "batch-card-title";
-    title.textContent = "Batch";
-    titleRow.appendChild(title);
   }
   card.appendChild(titleRow);
 
