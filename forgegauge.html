@@ -50,7 +50,7 @@
   }
 
   .wrap {
-    max-width: 780px;
+    max-width: 760px;
     margin: 0 auto;
   }
 
@@ -119,28 +119,34 @@
   .swap-icon { display: none; font-size: 15px; position: relative; z-index: 1; line-height: 1; }
   .swap-short { display: none; }
 
+  .mobile-swap-btn {
+    display: none;
+  }
+  .mobile-swap-btn::before {
+    background: radial-gradient(circle at 100% 50%, rgba(79,182,168,0.22), transparent 100%);
+  }
+  .mobile-swap-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    position: relative;
+    z-index: 1;
+  }
+  .mobile-swap-title {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 800;
+    font-size: 18px;
+    color: var(--text);
+    position: relative;
+    z-index: 1;
+    white-space: nowrap;
+  }
+  .mobile-swap-title span { color: var(--quench); }
+
   @media (max-width: 480px) {
-    .header-row {
-      flex-direction: column-reverse;
-      align-items: flex-end;
-      gap: 10px;
-    }
-    .swap-tool-btn {
-      flex-direction: row;
-      padding: 10px 16px;
-      gap: 7px;
-    }
-    .swap-full { display: none; }
-    .swap-icon { display: inline-block; }
-    .swap-short {
-      display: inline-block;
-      font-family: 'Work Sans', sans-serif;
-      font-weight: 600;
-      font-size: 14px;
-      color: var(--text);
-      position: relative;
-      z-index: 1;
-    }
+    .header-row .swap-tool-btn { display: none; }
   }
 
   h1 {
@@ -755,6 +761,17 @@
 
   @media (max-width: 480px) {
     h1 { font-size: 34px; }
+    .mobile-swap-btn {
+      display: flex;
+      width: 100%;
+      min-height: 50px;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 18px;
+      margin-bottom: 18px;
+    }
     .input-row { flex-direction: column; }
     .input-row button { width: 100%; }
     /* .input-clear-wrap's flex:1 is meant for horizontal growth in a row;
@@ -840,13 +857,17 @@
     </details>
   </div>
 
+  <a class="swap-tool-btn mobile-swap-btn" href="alloygauge.html">
+    <span class="mobile-swap-label">Swap to</span>
+    <span class="mobile-swap-title">Alloy<span>Gauge</span></span>
+  </a>
+
   <div class="header-row">
     <div class="header-titles">
       <p class="eyebrow"><a href="index.html">Forge Assistant</a> &middot; anvil solver</p>
       <h1>Forge<span>Gauge</span> <span class="version-badge">v1.1.2</span></h1>
     </div>
     <a class="swap-tool-btn" href="alloygauge.html">
-      <span class="swap-icon">&#128260;</span>
       <span class="swap-full">
         <span class="swap-label">Swap to</span>
         <span class="swap-title">Alloy<span>Gauge</span></span>
