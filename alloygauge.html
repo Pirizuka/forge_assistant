@@ -38,10 +38,7 @@
   padding: 32px 16px 64px;
   }
 
-  .wrap { 
-    max-width: 780px; 
-    margin: 0 auto; 
-  }
+  .wrap { max-width: 780px; margin: 0 auto; }
 
   .eyebrow {
   font-family: 'JetBrains Mono', monospace;
@@ -975,7 +972,7 @@
   </p>
 
   <div class="panel">
-    <p class="panel-title">Metals</p>
+    <p class="panel-title">Metals<button class="btn-quiet" id="resetMetalsBtn" type="button" style="text-transform:none; letter-spacing:normal; font-family:'Work Sans',sans-serif; font-size:13px; padding:6px 12px;">Reset</button></p>
     <div class="metals-row" id="metalsRow"></div>
     <div id="metalCardsContainer"></div>
     <p class="error-msg" id="setupError"></p>
@@ -1926,6 +1923,14 @@ function renderAll() {
 }
 renderAll();
 
+const resetMetalsBtn = document.getElementById("resetMetalsBtn");
+resetMetalsBtn.addEventListener("click", () => {
+  metals = [makeMetal("Metal 1", "#ff7a3d"), makeMetal("Metal 2", "#4fb6a8")];
+  renderAll();
+  resultsPanel.classList.remove("show");
+  setupError.classList.remove("show");
+});
+
 // ==============================
 // SAVED SETUPS (metal configuration - names/colors/ranges, not results)
 // ==============================
@@ -1949,7 +1954,7 @@ function saveSetupsToStorage(setups) {
 }
 
 let savedSetups = loadSetups();
-let newSetupColor = randomMetalColor();
+let newSetupColor = "#4fb6a8";
 // ==============================
 // CLEARABLE SEARCH FIELD
 // ==============================
@@ -2026,7 +2031,7 @@ function performSetupSave(name, metalsSnapshot, existingIndex) {
   saveSetupsToStorage(savedSetups);
   renderSavedSetups();
   setupSavedMsg.classList.add("show");
-  newSetupColor = randomMetalColor();
+  newSetupColor = "#4fb6a8";
   newSetupColorSwatch.style.background = newSetupColor;
 }
 
