@@ -30,7 +30,7 @@
   margin: 0;
   background: var(--bg);
   background-image:
-  radial-gradient(ellipse max(1200px, 65vw) 100% at 0% 33%, rgba(79,182,168,0.13), transparent 65%);
+  radial-gradient(ellipse max(1200px, 65vw) 100% at 0% 33%, rgba(79,182,168,0.14) 0%, rgba(79,182,168,0.05) 45%, transparent 85%);
   background-attachment: fixed;
   color: var(--text);
   font-family: 'Work Sans', system-ui, sans-serif;
@@ -79,7 +79,7 @@
   content: "";
   position: absolute;
   inset: -20%;
-  background: radial-gradient(circle at 50% 50%, rgba(255,122,61,0.20), transparent 70%);
+  background: radial-gradient(circle at 50% 50%, rgba(255,122,61,0.22) 0%, rgba(255,122,61,0.08) 45%, transparent 80%);
   z-index: 0;
   }
   .swap-label {
@@ -109,7 +109,7 @@
   display: none;
   }
   .mobile-swap-btn::before {
-  background: radial-gradient(circle at 100% 50%, rgba(255,122,61,0.22), transparent 100%);
+  background: radial-gradient(circle at 100% 50%, rgba(255,122,61,0.24) 0%, rgba(255,122,61,0.09) 50%, transparent 100%);
   }
   .mobile-swap-label {
   font-family: 'JetBrains Mono', monospace;
@@ -610,27 +610,46 @@
   padding: 18px 20px;
   margin-bottom: 18px;
   }
+  .totals-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+  }
+  .totals-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  }
+  .totals-actions .btn-quiet {
+  font-size: 12px;
+  padding: 6px 12px;
+  }
+  .totals-actions .btn-quiet.active {
+  border-color: var(--gold);
+  color: var(--gold);
+  }
+  .totals-actions .btn-quiet:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  }
   .totals-label {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11.5px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--gold);
-  margin: 0 0 6px;
+  margin: 0;
   }
   .totals-big {
   font-family: 'Big Shoulders Display', sans-serif;
   font-weight: 800;
-  font-size: 32px;
+  font-size: 24px;
   color: var(--text);
   margin: 0 0 14px;
-  line-height: 1;
-  }
-  .totals-big .totals-unit {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-dim);
-  margin-left: 6px;
+  line-height: 1.3;
   }
   .totals-blob-row {
   display: flex;
@@ -957,7 +976,7 @@
   <div class="header-row">
     <div class="header-titles">
       <p class="eyebrow"><a href="index.html">Forge Assistant</a> &middot; alloy calculator</p>
-      <h1>Alloy<span>Gauge</span> <span class="version-badge">v1.4</span></h1>
+      <h1>Alloy<span>Gauge</span> <span class="version-badge">v1.5</span></h1>
     </div>
     <a class="swap-tool-btn" href="forgegauge.html">
       <span class="swap-full">
@@ -984,7 +1003,13 @@
   <div class="panel" id="resultsPanel" style="">
     <p class="panel-title">Result</p>
     <div class="totals-highlight" id="totalsHighlight">
-      <p class="totals-label" id="totalsLabel">Maximum possible</p>
+      <div class="totals-header-row">
+        <p class="totals-label" id="totalsLabel">Maximum possible</p>
+        <div class="totals-actions">
+          <button class="btn-quiet" id="switchUnitsBtn" type="button">Switch units</button>
+          <button class="btn-quiet" id="fractionalModeBtn" type="button">Fractional mode</button>
+        </div>
+      </div>
       <p class="totals-big" id="totalsBig"></p>
       <div class="totals-blob-row" id="totalsBlobRow"></div>
     </div>
@@ -1037,6 +1062,10 @@
         <div class="full-width checkbox-row">
           <input type="checkbox" id="allowPartialInput" />
           <label for="allowPartialInput">Allow partial amounts (fractional units)</label>
+        </div>
+        <div class="full-width checkbox-row" id="includeNuggetsRow">
+          <input type="checkbox" id="includeNuggetsInput" checked />
+          <label for="includeNuggetsInput">Include nuggets in Fractional mode</label>
         </div>
         <div class="full-width">
           <label class="field-label">Conversion rate</label>
@@ -1268,17 +1297,20 @@ function distributeEvenly(total, k) {
   return parts;
 }
 
-function fillFlexibleMetals(uIdxs, metals, total, constrainedSum) {
+function fillFlexibleMetals(uIdxs, metals, total, constrainedSum, tol) {
   // Distribute (total - constrainedSum) among the flexible (non-bottleneck)
   // metals, each kept within the integer unit bounds implied by its own
   // %range at this total. Returns an allocation array (parallel to uIdxs)
   // or null if no valid integer allocation exists at this exact total.
+  // tol is the %-point slack allowed past each metal's own stated range -
+  // see computeBatchForConstrainedAmounts below for why this is tried at 0
+  // first, before ever falling back to PCT_TOLERANCE.
   const remaining = total - constrainedSum;
   if (remaining < -1e-9) return null;
   if (uIdxs.length === 0) return Math.abs(remaining) < 1e-6 ? [] : null;
 
-  const lower = uIdxs.map((i) => Math.max(0, Math.ceil(((metals[i].min - PCT_TOLERANCE) / 100) * total - 1e-6)));
-  const upper = uIdxs.map((i) => Math.floor(((metals[i].max + PCT_TOLERANCE) / 100) * total + 1e-6));
+  const lower = uIdxs.map((i) => Math.max(0, Math.ceil(((metals[i].min - tol) / 100) * total - 1e-6)));
+  const upper = uIdxs.map((i) => Math.floor(((metals[i].max + tol) / 100) * total + 1e-6));
 
   const sumLower = lower.reduce((s, v) => s + v, 0);
   const sumUpper = upper.reduce((s, v) => s + v, 0);
@@ -1307,7 +1339,10 @@ function fillFlexibleMetals(uIdxs, metals, total, constrainedSum) {
   return alloc;
 }
 
-function computeBatchForConstrainedAmounts(constrainedAmounts, constrainedIdxs, metals, cap) {
+// Core batch search at a FIXED tolerance. Kept separate from
+// computeBatchForConstrainedAmounts (below) so that function can try an
+// exact, zero-tolerance pass before ever falling back to PCT_TOLERANCE.
+function computeBatchForConstrainedAmountsAtTolerance(constrainedAmounts, constrainedIdxs, metals, cap, tol) {
   let maxTotal = cap;
   let minTotalRequired = 0;
 
@@ -1319,9 +1354,9 @@ function computeBatchForConstrainedAmounts(constrainedAmounts, constrainedIdxs, 
       if (m.min > 0) return { ok: false };
       continue;
     }
-    const effMin = m.min - PCT_TOLERANCE;
+    const effMin = m.min - tol;
     const upperBoundFromMin = effMin > 0 ? Math.floor(amt / (effMin / 100)) : Infinity;
-    const lowerBoundFromMax = Math.ceil(amt / ((m.max + PCT_TOLERANCE) / 100));
+    const lowerBoundFromMax = Math.ceil(amt / ((m.max + tol) / 100));
     maxTotal = Math.min(maxTotal, upperBoundFromMin);
     minTotalRequired = Math.max(minTotalRequired, lowerBoundFromMax);
   }
@@ -1337,7 +1372,7 @@ function computeBatchForConstrainedAmounts(constrainedAmounts, constrainedIdxs, 
   // biggest total that actually works, rather than assuming the max total
   // is automatically fillable.
   for (let total = maxTotal; total >= minTotalRequired; total--) {
-    const alloc = fillFlexibleMetals(uIdxs, metals, total, constrainedSum);
+    const alloc = fillFlexibleMetals(uIdxs, metals, total, constrainedSum, tol);
     if (alloc === null) continue;
 
     const batch = new Array(metals.length).fill(0);
@@ -1347,12 +1382,25 @@ function computeBatchForConstrainedAmounts(constrainedAmounts, constrainedIdxs, 
     const finalTotal = batch.reduce((s, v) => s + v, 0);
     const valid = metals.every((m, i) => {
       const pct = (batch[i] / finalTotal) * 100;
-      return pct >= m.min - PCT_TOLERANCE - 1e-6 && pct <= m.max + PCT_TOLERANCE + 1e-6;
+      return pct >= m.min - tol - 1e-6 && pct <= m.max + tol + 1e-6;
     });
     if (valid) return { ok: true, batch, total: finalTotal };
   }
 
   return { ok: false };
+}
+
+// Public entry point: always prefers a batch that satisfies every metal's
+// TRUE stated %range exactly (tol = 0). PCT_TOLERANCE is only used as a
+// fallback when no such exact batch exists at ANY reachable total - e.g. a
+// fixed/very narrow %range that can only be hit at impractically large
+// totals. Without this ordering, a wide-open range (like 5-100%) could
+// still get a slightly-out-of-range batch just because the tolerant search
+// happened to find a larger total before the exact search would have.
+function computeBatchForConstrainedAmounts(constrainedAmounts, constrainedIdxs, metals, cap) {
+  const exact = computeBatchForConstrainedAmountsAtTolerance(constrainedAmounts, constrainedIdxs, metals, cap, 0);
+  if (exact.ok) return exact;
+  return computeBatchForConstrainedAmountsAtTolerance(constrainedAmounts, constrainedIdxs, metals, cap, PCT_TOLERANCE);
 }
 
 // Single-bottleneck exact solver: precomputes, for every whole-number amount
@@ -1363,15 +1411,7 @@ function computeBatchForConstrainedAmounts(constrainedAmounts, constrainedIdxs, 
 // This is exact (not a heuristic) and correctly handles cases where only
 // certain amounts happen to be batch-feasible (e.g. a fixed/zero-width
 // %range elsewhere forces the total to be a very specific multiple).
-function splitSingleBottleneckExact(bottleneckIdx, trueAmount, metals, cap) {
-  if (trueAmount <= 0) return null;
-
-  const feasible = new Array(trueAmount + 1).fill(null);
-  for (let s = 1; s <= trueAmount; s++) {
-    const r = computeBatchForConstrainedAmounts([s], [bottleneckIdx], metals, cap);
-    feasible[s] = r.ok ? r : null;
-  }
-
+function runBatchDP(feasible, trueAmount) {
   const dp = new Array(trueAmount + 1).fill(null);
   dp[0] = { grandTotal: 0, parts: [] };
 
@@ -1391,12 +1431,42 @@ function splitSingleBottleneckExact(bottleneckIdx, trueAmount, metals, cap) {
       }
     }
   }
+  return dp[trueAmount];
+}
 
-  const best = dp[trueAmount];
-  if (!best) return null;
+function splitSingleBottleneckExact(bottleneckIdx, trueAmount, metals, cap) {
+  if (trueAmount <= 0) return null;
 
-  const batches = best.parts.map((s) => feasible[s].batch);
-  return { K: batches.length, batches, grandTotal: best.grandTotal };
+  // Phase 1: decompose trueAmount using ONLY per-batch amounts that have an
+  // exact (tol = 0) solution. This is tried first and exclusively - a
+  // decomposition that stays within every metal's TRUE stated %range is
+  // always preferred over one that needs PCT_TOLERANCE for some batch, even
+  // if the tolerant version would reach a larger grand total.
+  const feasibleStrict = new Array(trueAmount + 1).fill(null);
+  for (let s = 1; s <= trueAmount; s++) {
+    const r = computeBatchForConstrainedAmountsAtTolerance([s], [bottleneckIdx], metals, cap, 0);
+    feasibleStrict[s] = r.ok ? r : null;
+  }
+  const bestStrict = runBatchDP(feasibleStrict, trueAmount);
+  if (bestStrict) {
+    const batches = bestStrict.parts.map((s) => feasibleStrict[s].batch);
+    return { K: batches.length, batches, grandTotal: bestStrict.grandTotal };
+  }
+
+  // Phase 2: no fully-exact decomposition exists at all (e.g. a fixed/very
+  // narrow %range elsewhere that can only be hit within PCT_TOLERANCE) -
+  // fall back to allowing tolerance for whichever amounts need it.
+  const feasibleLenient = new Array(trueAmount + 1).fill(null);
+  for (let s = 1; s <= trueAmount; s++) {
+    if (feasibleStrict[s]) { feasibleLenient[s] = feasibleStrict[s]; continue; }
+    const r = computeBatchForConstrainedAmountsAtTolerance([s], [bottleneckIdx], metals, cap, PCT_TOLERANCE);
+    feasibleLenient[s] = r.ok ? r : null;
+  }
+  const bestLenient = runBatchDP(feasibleLenient, trueAmount);
+  if (!bestLenient) return null;
+
+  const batches = bestLenient.parts.map((s) => feasibleLenient[s].batch);
+  return { K: batches.length, batches, grandTotal: bestLenient.grandTotal };
 }
 
 // metals: [{ min, max, amount }] - amount is the TRUE INTEGER total to use
@@ -1414,10 +1484,36 @@ function splitBatchesSmart(metals, cap, kMinHint) {
 
   const trueAmounts = constrainedIdxs.map((i) => metals[i].amount);
 
-  let best = null;
   const kLo = Math.max(1, kMinHint - 2);
   const kHi = Math.max(kLo + 10, kMinHint * 3 + 10);
 
+  // Phase 1: prefer a K where EVERY batch has an exact (tol = 0) solution -
+  // no PCT_TOLERANCE used anywhere - even if a tolerant K would reach a
+  // larger grand total. Mirrors the preference in splitSingleBottleneckExact.
+  let bestStrict = null;
+  for (let K = kLo; K <= kHi; K++) {
+    const perMetalParts = trueAmounts.map((amt) => distributeEvenly(amt, K));
+    let grandTotal = 0;
+    const batches = [];
+    let feasible = true;
+
+    for (let b = 0; b < K; b++) {
+      const constrainedAmountsForBatch = perMetalParts.map((parts) => parts[b]);
+      const result = computeBatchForConstrainedAmountsAtTolerance(constrainedAmountsForBatch, constrainedIdxs, metals, cap, 0);
+      if (!result.ok) { feasible = false; break; }
+      batches.push(result.batch);
+      grandTotal += result.total;
+    }
+
+    if (feasible && (!bestStrict || grandTotal > bestStrict.grandTotal)) {
+      bestStrict = { K, batches, grandTotal };
+    }
+  }
+  if (bestStrict) return bestStrict;
+
+  // Phase 2: no K found an all-exact split - fall back to allowing
+  // PCT_TOLERANCE per-batch where needed (same as before this fix existed).
+  let best = null;
   for (let K = kLo; K <= kHi; K++) {
     const perMetalParts = trueAmounts.map((amt) => distributeEvenly(amt, K));
     let grandTotal = 0;
@@ -1577,6 +1673,8 @@ const crucibleCapInput = document.getElementById("crucibleCapInput");
 const allowPartialInput = document.getElementById("allowPartialInput");
 allowPartialInput.addEventListener("change", () => {
   cardValidityUpdaters.forEach((fn) => fn());
+  updateResultActionButtons();
+  if (lastPlan) refreshResultsDisplay();
 });
 const mbPerIngotInput = document.getElementById("mbPerIngotInput");
 const ingotsInput = document.getElementById("ingotsInput");
@@ -2240,6 +2338,87 @@ calculateBtn.addEventListener("click", () => {
 
 let expandedGroups = new Set();
 let lastPlan = null;
+let lastPlanUnit = "ingot";
+let lastPlanConversion = { mBPerIngot: 144, nuggetsPerIngot: 9 };
+let displayUnit = "ingot";
+let fractionalModeOn = false;
+const UNIT_CYCLE = ["ingot", "mB", "nugget"];
+
+const switchUnitsBtn = document.getElementById("switchUnitsBtn");
+const fractionalModeBtn = document.getElementById("fractionalModeBtn");
+const includeNuggetsRow = document.getElementById("includeNuggetsRow");
+const includeNuggetsInput = document.getElementById("includeNuggetsInput");
+
+function planValueToMB(v) {
+  return unitToMB(v, lastPlanUnit, lastPlanConversion);
+}
+
+function fractionalBreakdownString(mbValue) {
+  const mBPerIngot = lastPlanConversion.mBPerIngot;
+  const mBPerNugget = lastPlanConversion.mBPerIngot / lastPlanConversion.nuggetsPerIngot;
+  const includeNuggets = includeNuggetsInput.checked;
+
+  let remaining = mbValue;
+  const parts = [];
+
+  const wholeIngots = Math.floor(remaining / mBPerIngot + 1e-9);
+  parts.push(`${wholeIngots} ${unitDisplayName("ingot")}`);
+  remaining -= wholeIngots * mBPerIngot;
+
+  if (includeNuggets) {
+    const wholeNuggets = Math.floor(remaining / mBPerNugget + 1e-9);
+    parts.push(`${wholeNuggets} ${unitDisplayName("nugget")}`);
+    remaining -= wholeNuggets * mBPerNugget;
+  }
+
+  const finalMB = Math.round(remaining);
+  parts.push(`${finalMB} ${unitDisplayName("mB")}`);
+
+  return parts.join(", ");
+}
+
+function formatDisplayValue(planNativeValue) {
+  const mb = planValueToMB(planNativeValue);
+  if (fractionalModeOn) return fractionalBreakdownString(mb);
+  const converted = mbToUnit(mb, displayUnit, lastPlanConversion);
+  const isWhole = Math.abs(converted - Math.round(converted)) < 1e-6;
+  const shown = isWhole ? Math.round(converted).toString() : (Math.round(converted * 100) / 100).toString();
+  return `${shown} ${unitDisplayName(displayUnit)}`;
+}
+
+// Same as formatDisplayValue but split into {shown, unitLabel} - used for the
+// large "Maximum possible" headline, which styles the number and unit
+// differently (and in fractional mode just uses the plain combined string).
+function formatDisplayValueParts(planNativeValue) {
+  const mb = planValueToMB(planNativeValue);
+  if (fractionalModeOn) return { shown: fractionalBreakdownString(mb), unitLabel: "" };
+  const converted = mbToUnit(mb, displayUnit, lastPlanConversion);
+  const isWhole = Math.abs(converted - Math.round(converted)) < 1e-6;
+  const shown = isWhole ? Math.round(converted).toString() : (Math.round(converted * 100) / 100).toString();
+  return { shown, unitLabel: unitDisplayName(displayUnit) };
+}
+
+function updateResultActionButtons() {
+  const partialOn = allowPartialInput.checked;
+  fractionalModeBtn.disabled = !partialOn;
+  if (!partialOn) fractionalModeOn = false;
+  fractionalModeBtn.classList.toggle("active", fractionalModeOn);
+}
+updateResultActionButtons();
+
+switchUnitsBtn.addEventListener("click", () => {
+  displayUnit = UNIT_CYCLE[(UNIT_CYCLE.indexOf(displayUnit) + 1) % UNIT_CYCLE.length];
+  if (lastPlan) refreshResultsDisplay();
+});
+fractionalModeBtn.addEventListener("click", () => {
+  if (fractionalModeBtn.disabled) return;
+  fractionalModeOn = !fractionalModeOn;
+  fractionalModeBtn.classList.toggle("active", fractionalModeOn);
+  if (lastPlan) refreshResultsDisplay();
+});
+includeNuggetsInput.addEventListener("change", () => {
+  if (lastPlan && fractionalModeOn) refreshResultsDisplay();
+});
 
 function groupIdenticalBatches(batches) {
   // Groups consecutive batches with the same composition (within floating-
@@ -2256,10 +2435,27 @@ function groupIdenticalBatches(batches) {
 }
 
 function renderResults(plan) {
-  const unitName = unitDisplayName(unitSelect.value);
-  const allowPartial = allowPartialInput.checked;
   expandedGroups = new Set();
   lastPlan = plan;
+  lastPlanUnit = unitSelect.value;
+  lastPlanConversion = {
+    mBPerIngot: Number(mbPerIngotInput.value) || 144,
+    nuggetsPerIngot: Number(nuggetsPerIngotInput.value) || 9,
+  };
+  // Adjust for a non-1 "ingots" pivot the same way computeAlloyPlan does.
+  const ingotPivot = Number(ingotsInput.value) > 0 ? Number(ingotsInput.value) : 1;
+  lastPlanConversion = {
+    mBPerIngot: lastPlanConversion.mBPerIngot / ingotPivot,
+    nuggetsPerIngot: lastPlanConversion.nuggetsPerIngot / ingotPivot,
+  };
+  displayUnit = lastPlanUnit;
+  updateResultActionButtons();
+  refreshResultsDisplay();
+  resultsPanel.classList.add("show");
+}
+
+function refreshResultsDisplay() {
+  const plan = lastPlan;
 
   // ---- Prominent "Maximum possible" headline + per-metal total blobs ----
   // Totals are summed straight from the batch list (not re-derived from
@@ -2268,7 +2464,10 @@ function renderResults(plan) {
   const grandTotal = totalsPerMetal.reduce((s, v) => s + v, 0);
 
   totalsLabel.textContent = plan.unbounded ? "Average alloy (per batch)" : "Maximum possible";
-  totalsBig.innerHTML = `${formatAmount(grandTotal, allowPartial)}<span class="totals-unit">${unitName} total</span>`;
+  const totalsParts = formatDisplayValueParts(grandTotal);
+  totalsBig.textContent = fractionalModeOn
+    ? totalsParts.shown
+    : `${totalsParts.shown} ${totalsParts.unitLabel}`;
 
   totalsBlobRow.innerHTML = "";
   metals.forEach((m, i) => {
@@ -2278,7 +2477,7 @@ function renderResults(plan) {
     dot.className = "dot";
     dot.style.background = m.color;
     blob.appendChild(dot);
-    blob.appendChild(document.createTextNode(`${formatAmount(totalsPerMetal[i], allowPartial)} ${m.name}`));
+    blob.appendChild(document.createTextNode(`${formatDisplayValue(totalsPerMetal[i])} ${m.name}`));
     totalsBlobRow.appendChild(blob);
   });
 
@@ -2287,7 +2486,7 @@ function renderResults(plan) {
   // not necessarily what any single rounded batch actually contains. Not
   // shown directly; each batch card shows its own true percentages instead.
 
-  renderBatchCards(plan, unitName, allowPartial);
+  renderBatchCards(plan);
 
   if (plan.warnings && plan.warnings.length) {
     resultWarning.textContent = plan.warnings.join(" ");
@@ -2295,18 +2494,16 @@ function renderResults(plan) {
   } else {
     resultWarning.style.display = "none";
   }
-
-  resultsPanel.classList.add("show");
 }
 
-function renderBatchCards(plan, unitName, allowPartial) {
+function renderBatchCards(plan) {
   const groups = groupIdenticalBatches(plan.batches);
   batchesContainer.innerHTML = "";
 
   groups.forEach((group, groupIdx) => {
     if (group.count > 1 && !expandedGroups.has(groupIdx)) {
       batchesContainer.appendChild(
-        makeBatchCard(group.batch, unitName, allowPartial, {
+        makeBatchCard(group.batch, {
           grouped: true,
           count: group.count,
           groupIdx,
@@ -2321,20 +2518,20 @@ function renderBatchCards(plan, unitName, allowPartial) {
       collapseBtn.textContent = `Collapse back to ${group.count} identical batches`;
       collapseBtn.addEventListener("click", () => {
         expandedGroups.delete(groupIdx);
-        renderBatchCards(plan, unitName, allowPartial);
+        renderBatchCards(plan);
       });
       collapseWrap.appendChild(collapseBtn);
       batchesContainer.appendChild(collapseWrap);
       for (let k = 0; k < group.count; k++) {
-        batchesContainer.appendChild(makeBatchCard(group.batch, unitName, allowPartial, { grouped: false }));
+        batchesContainer.appendChild(makeBatchCard(group.batch, { grouped: false }));
       }
     } else {
-      batchesContainer.appendChild(makeBatchCard(group.batch, unitName, allowPartial, { grouped: false }));
+      batchesContainer.appendChild(makeBatchCard(group.batch, { grouped: false }));
     }
   });
 }
 
-function makeBatchCard(batch, unitName, allowPartial, opts) {
+function makeBatchCard(batch, opts) {
   const card = document.createElement("div");
   card.className = "batch-card";
 
@@ -2386,7 +2583,7 @@ function makeBatchCard(batch, unitName, allowPartial, opts) {
     expandBtn.textContent = "Show individually";
     expandBtn.addEventListener("click", () => {
       expandedGroups.add(opts.groupIdx);
-      renderBatchCards(lastPlan, unitName, allowPartial);
+      renderBatchCards(lastPlan);
     });
     titleRow.appendChild(expandBtn);
   }
@@ -2406,7 +2603,7 @@ function makeBatchCard(batch, unitName, allowPartial, opts) {
     label.appendChild(document.createTextNode(metals[i].name));
     const amt = document.createElement("span");
     amt.className = "amount";
-    amt.textContent = `${formatAmount(amount, allowPartial)} ${unitName}`;
+    amt.textContent = formatDisplayValue(amount);
     row.appendChild(label);
     row.appendChild(amt);
     card.appendChild(row);
@@ -2414,7 +2611,7 @@ function makeBatchCard(batch, unitName, allowPartial, opts) {
 
   const totalRow = document.createElement("div");
   totalRow.className = "batch-total";
-  totalRow.innerHTML = `<span>Total${opts.grouped ? " (per batch)" : ""}</span><span>${formatAmount(total, allowPartial)} ${unitName}</span>`;
+  totalRow.innerHTML = `<span>Total${opts.grouped ? " (per batch)" : ""}</span><span>${formatDisplayValue(total)}</span>`;
   card.appendChild(totalRow);
 
   return card;
